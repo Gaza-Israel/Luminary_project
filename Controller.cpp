@@ -43,7 +43,6 @@ void Controller::compute_ffwrd_ctrl_action() {
  * 
  */
 void Controller::check_integral_limits() {
-  this->_u = this->_fb_on * this->_u_fb + this->_ff_on * this->_u_ff;
   if ((this->_u > 100 || this->_u < 0) && this->_ki != 0) {
     float sat_max = 100 - this->_u_ff - this->_kp * this->_e;
     float sat_min = 0 - this->_u_ff - this->_kp * this->_e;
@@ -64,6 +63,7 @@ void Controller::check_integral_limits() {
  *
  */
 void Controller::update_led_DC() {
+  this->_u = this->_fb_on * this->_u_fb + this->_ff_on * this->_u_ff;
   if (this->_anti_windup_on) {
     check_integral_limits();
   }
@@ -188,6 +188,26 @@ float Controller::get_u_fb() {
  */
 float Controller::get_u_ff() {
   return this->_u_ff;
+}
+
+/**
+ * @brief Gets the feedback branch status
+ *
+ * @return true
+ * @return false
+ */
+bool Controller::get_u_fb_status() {
+  return this->_fb_on;
+}
+
+/**
+ * @brief Gets the feedforward branch status
+ *
+ * @return true
+ * @return false
+ */
+bool Controller::get_u_ff_status() {
+  return this->_ff_on;
 }
 
 /**

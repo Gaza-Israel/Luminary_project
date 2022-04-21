@@ -23,6 +23,8 @@ class Controller {
   float get_e();
   float get_u_fb();
   float get_u_ff();
+  bool get_u_fb_status();
+  bool get_u_ff_status();
   bool get_occ();
   bool get_anti_windup_status();
   void set_ref(float ref, bool occ = true);
