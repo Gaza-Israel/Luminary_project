@@ -95,11 +95,11 @@ void LDR::average_measure(int n) {
   for (int i = 0; i < n; i++) {
     this->read_and_convert();
     voltage += this->voltage;
-    resistance += long(this->resistance);
+    resistance += long(this->resistance)/1000;
     lux += this->lux;
   }
   this->voltage = voltage / n;
-  this->resistance = int(resistance / n);
+  this->resistance = int(resistance * 1000/ n);
   this->lux = lux / n;
 }
 /**
