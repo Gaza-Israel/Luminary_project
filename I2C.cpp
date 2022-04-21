@@ -3,7 +3,7 @@
 
 #include <hardware/flash.h>
 
-#define FRAME_SIZE 10
+#define FRAME_SIZE 11
 
 namespace I2C {
 
@@ -25,7 +25,7 @@ void config_I2C(int SDA0, int SCL0, int SDA1, int SCL1) {
 
 int send_message(i2c_message msg, uint8_t address) {
   byte tx_buff[FRAME_SIZE];  // size 10 (struct pad to 16, but only 10 are necessary)
-  
+
   msg.node = get_I2C1_address();
   msg.ts = millis();
 
@@ -39,7 +39,7 @@ int send_message(i2c_message msg, uint8_t address) {
   tx_buff[7] = msg.data >> 8;
   tx_buff[8] = msg.data >> 16;
   tx_buff[9] = msg.data >> 24;
-  tx_buff[10] = calculate_pec(tx_buff,FRAME_SIZE-1);
+  tx_buff[10] = calculate_pec(tx_buff, FRAME_SIZE - 1);
 
   Wire.beginTransmission(address);
   Wire.write(tx_buff, sizeof(tx_buff));
@@ -65,7 +65,6 @@ void recv(int len) {
   msg.data = rx_buff[6] << 0 | rx_buff[7] << 8 | rx_buff[8] << 16 | rx_buff[9] << 24;
   msg.pec = rx_buff[10];
 
- 
   if (in_buff.isFull()) {
     n_overflows++;
     return;
@@ -77,15 +76,15 @@ void read_buffer() {
   if (in_buff.size() > 0) {
     I2C::i2c_message msg = in_buff.pop();
     char buff[100];
-    snprintf(buff, 100, "Received message from %d, at %d, with id %d, data %d, and CRC-8 of %d", msg.node, msg.ts,msg.msg_id, msg.data,msg.pec);
+    snprintf(buff, 100, "Received message from %d, at %d, with id %d, data %d, and CRC-8 of %d", msg.node, msg.ts, msg.msg_id, msg.data, msg.pec);
     Serial.println(buff);
   }
 }
 
-uint8_t calculate_pec(byte bytes[],int len) {
+uint8_t calculate_pec(byte bytes[], int len) {
   const byte generator = 0x1D;
   byte crc = 0; /* start with 0 so first byte can be 'xored' in */
-   for (int i = 0;i<len;i++) {
+  for (int i = 0; i < len; i++) {
     crc ^= bytes[i]; /* XOR-in the next input byte */
 
     for (int i = 0; i < 8; i++) {
