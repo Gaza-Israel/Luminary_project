@@ -1,6 +1,7 @@
 #include "Parser.h"
 
 #include <CircularBuffer.h>
+
 #include "I2C.h"
 #include "Luminaire.h"
 #include "Streaming.h"
@@ -41,12 +42,11 @@ fl=5863383
 
 Luminary *G_L1;
 uint16_t stream = 0;
-
-CircularBuffer<float, 60 * CONTROLLER_FREQ> DC;
-CircularBuffer<float, 60 * CONTROLLER_FREQ> ref;
-CircularBuffer<float, 60 * CONTROLLER_FREQ> L_meas;
-CircularBuffer<float, 60 * CONTROLLER_FREQ> L_pred;
-CircularBuffer<float, 60 * CONTROLLER_FREQ> integral;
+CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> DC;        // 0 - 65535 (0-100% times 65535/100)
+CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> ref;       // (ref * 1000)
+CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> L_meas;    // (L_meas * 1000)
+CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> L_pred;    // (L_pred * 1000)
+CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> integral;  //(integral * 1000)
 // CircularBuffer<float, 60 * CONTROLLER_FREQ> pwr;
 // CircularBuffer<float, 60 * CONTROLLER_FREQ> ext_ilu;
 // CircularBuffer<float, 60 * CONTROLLER_FREQ> flicker;
@@ -59,13 +59,13 @@ CircularBuffer<float, 60 * CONTROLLER_FREQ> integral;
 // #define AUTO_TEST
 /**
  * @brief Construct a new Parser:: Parser object
- * 
+ *
  */
 Parser::Parser() {
 }
 /**
  * @brief Set up the parser, registering the available commands and its callbacks
- * 
+ *
  */
 void Parser::setup() {
 #ifdef AUTO_TEST
@@ -108,16 +108,16 @@ void Parser::setup() {
 }
 /**
  * @brief Get the Luminary object by its id (currently only works for ID = 1)
- * 
+ *
  * @param id Luminary ID
- * @return Luminary* 
+ * @return Luminary*
  */
 Luminary *get_lum_by_id(int id) {
   return G_L1;
 }
 /**
  * @brief Calculate a Hash value for an string
- * 
+ *
  * @param str String to be hased
  * @return const unsigned long - Hash
  */
@@ -133,10 +133,7 @@ const unsigned long hash(const char *str) {
 void Parser::set_dc(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   float dc = args[1].asDouble;
-  if (id!= self_id){
-    I2C::
-  }
-  // Luminary *L = get_lum_by_id(id);
+  Luminary *L = get_lum_by_id(id);
   L->led.set_dutty_cicle(dc);
   strlcpy(response, "ack", MyCommandParser::MAX_RESPONSE_SIZE);
 }
@@ -197,7 +194,7 @@ void Parser::set_ff_status(MyCommandParser::Argument *args, char *response) {
 void Parser::get_ff_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   Luminary *L = get_lum_by_id(id);
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "w%d %d", id, L->contr.get_u_ff());
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "w%d %d", id, L->contr.get_u_ff_status());
 }
 void Parser::set_fb_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
@@ -209,7 +206,7 @@ void Parser::set_fb_status(MyCommandParser::Argument *args, char *response) {
 void Parser::get_fb_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   Luminary *L = get_lum_by_id(id);
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "w%d %d", id, L->contr.get_u_fb());
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "w%d %d", id, L->contr.get_u_fb_status());
 }
 void Parser::get_ext_ilu(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
@@ -287,7 +284,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       Serial.print(buff);
 
       for (uint16_t i = 0; i < DC.size(); i++) {
-        snprintf(buff, 20, ",%.8f", DC[i]);
+        snprintf(buff, 20, ",%.3f", float(DC[i]) * 100 / 65535);
         Serial.print(buff);
       }
       break;
@@ -296,7 +293,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       Serial.print(buff);
 
       for (uint16_t i = 0; i < ref.size(); i++) {
-        snprintf(buff, 20, ",%.8f", ref[i]);
+        snprintf(buff, 20, ",%.3f", float(ref[i]) / 1000);
         Serial.print(buff);
       }
       break;
@@ -305,7 +302,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       Serial.print(buff);
 
       for (uint16_t i = 0; i < L_meas.size(); i++) {
-        snprintf(buff, 20, ",%.8f", L_meas[i]);
+        snprintf(buff, 20, ",%.3f", float(L_meas[i]) / 1000);
         Serial.print(buff);
       }
       break;
@@ -314,7 +311,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       Serial.print(buff);
 
       for (uint16_t i = 0; i < L_pred.size(); i++) {
-        snprintf(buff, 20, ",%.8f", L_pred[i]);
+        snprintf(buff, 20, ",%.3f", float(L_pred[i]) / 1000);
         Serial.print(buff);
       }
       break;
@@ -323,51 +320,85 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       Serial.print(buff);
 
       for (uint16_t i = 0; i < ref.size(); i++) {
-        snprintf(buff, 20, ",%.8f", ref[i] - L_meas[i]);
+        snprintf(buff, 20, ",%.3f", float(ref[i] - L_meas[i]) / 1000);
         Serial.print(buff);
       }
       break;
-    // case PROP_HASH:
-    //   TOGGLE(stream, 10);
-    //   break;
-    // case INTEGRAL_HASH:
-    //   TOGGLE(stream, 8);
-    //   break;
-    // case U_FF_HASH:
-    //   TOGGLE(stream, 7);
-    //   break;
-    // case U_FB_HASH:
-    //   TOGGLE(stream, 6);
-    //   break;
-    // case U:
-    //   TOGGLE(stream, 5);
-    //   break;
+    case PROP_HASH:
+      snprintf(buff, 20, "h p%d ", L->get_id());
+      Serial.print(buff);
+
+      for (uint16_t i = 0; i < ref.size(); i++) {
+        snprintf(buff, 20, ",%.3f", float(ref[i] - L_meas[i]) * G_L1->contr.get_kp() / 1000);
+        Serial.print(buff);
+      }
+      break;
+    case INTEGRAL_HASH:
+      snprintf(buff, 20, "h int%d ", L->get_id());
+      Serial.print(buff);
+
+      for (uint16_t i = 0; i < ref.size(); i++) {
+        snprintf(buff, 20, ",%.3f", float(integral[i]) / 1000);
+        Serial.print(buff);
+      }
+      break;
+    case U_FF_HASH:
+      snprintf(buff, 20, "h u_ff%d ", L->get_id());
+      Serial.print(buff);
+
+      for (uint16_t i = 0; i < ref.size(); i++) {
+        snprintf(buff, 20, ",%.3f", (float(ref[i]) / 1000 - G_L1->sim.get_L0()) / G_L1->sim.get_G());
+        Serial.print(buff);
+      }
+      break;
+    case U_FB_HASH:
+      snprintf(buff, 20, "h u_fb%d ", L->get_id());
+      Serial.print(buff);
+
+      for (uint16_t i = 0; i < ref.size(); i++) {
+        snprintf(buff, 20, ",%.3f", float(integral[i]) / 1000 + float(ref[i] - L_meas[i]) * G_L1->contr.get_kp() / 1000);
+        Serial.print(buff);
+      }
+      break;
+    case U:
+      snprintf(buff, 20, "h u%d ", L->get_id());
+      Serial.print(buff);
+      float u_fb, u_ff;
+      for (uint16_t i = 0; i < ref.size(); i++) {
+        u_fb = L->contr.get_u_fb_status() * (float(integral[i]) / 1000 + float(ref[i] - L_meas[i]) * G_L1->contr.get_kp() / 1000);
+        u_ff = L->contr.get_u_ff_status() * ((float(ref[i]) / 1000 - G_L1->sim.get_L0()) / G_L1->sim.get_G());
+        snprintf(buff, 20, ",%.3f", u_fb + u_ff);
+        Serial.print(buff);
+      }
+      break;
     case PWR_HASH:
       snprintf(buff, 20, "h pw%d ", L->get_id());
       Serial.print(buff);
-
-      // for (uint16_t i = 0; i < pwr.size(); i++) {
-      //   snprintf(buff, 20, ",%.8f", pwr[i]);
-      //   Serial.print(buff);
-      // }
+      for (uint16_t i = 0; i < DC.size(); i++) {
+        snprintf(buff, 20, ",%.3f", (float(DC[i]) / 65535) * AVRG_LED_MAX_CURRENT * Vcc);
+        Serial.print(buff);
+      }
       break;
     case EXT_ILU_HASH:
       snprintf(buff, 20, "h xi%d ", L->get_id());
       Serial.print(buff);
-
-      // for (uint16_t i = 0; i < ext_ilu.size(); i++) {
-      //   snprintf(buff, 20, ",%.8f", ext_ilu[i]);
-      //   Serial.print(buff);
-      // }
+      for (uint16_t i = 0; i < L_meas.size(); i++) {
+        snprintf(buff, 20, ",%.3f", float(L_meas[i] - L_pred[i]) / 1000);
+        Serial.print(buff);
+      }
       break;
     case FLICKER_HASH:
       snprintf(buff, 20, "h fl%d ", L->get_id());
       Serial.print(buff);
-
-      // for (uint16_t i = 0; i < flicker.size(); i++) {
-      //   snprintf(buff, 20, ",%.8f", flicker[i]);
-      //   Serial.print(buff);
-      // }
+      float flicker, l, l1, l2;
+      for (uint16_t i = 2; i < L_meas.size(); i++) {
+        l = float(L_meas[i]) / 1000;
+        l1 = float(L_meas[i - 1]) / 1000;
+        l2 = float(L_meas[i - 2]) / 1000;
+        flicker = ((abs(l - l1) + abs(l1 - l2)) * CONTROLLER_FREQ / 2) * ((l - l1) * (l1 - l2) < 0);
+        snprintf(buff, 20, ",%.4f", flicker);
+        Serial.print(buff);
+      }
       break;
     default:
       Serial.println("Var not found");
@@ -406,73 +437,69 @@ void init_globals(Luminary *lum) {
 }
 /**
  * @brief Updates the circular buffer with state variables
- * 
+ *
  */
 void update_hist() {
-  DC.push(G_L1->led.dutty_cicle);
-  ref.push(G_L1->contr.get_ref());
-  L_meas.push(G_L1->ldr.lux);
-  L_pred.push(G_L1->sim.get_current_l_prediction());
-  integral.push(G_L1->contr.get_integral());
-  // pwr.push(G_L1->get_curr_pwr());
-  // ext_ilu.push(G_L1->get_ext_ilu());
-  // flicker.push(G_L1->get_curr_flicker());
+  DC.push((G_L1->led.dutty_cicle / 100) * 65535);
+  ref.push(G_L1->contr.get_ref() * 1000);
+  L_meas.push(G_L1->ldr.lux * 1000);
+  L_pred.push(G_L1->sim.get_current_l_prediction() * 1000);
+  integral.push(G_L1->contr.get_integral() * 1000);
 }
 
 void print_stream(Luminary *Lum) {
   char buff[300];
   snprintf_P(buff, 300, "s ");
   if (READ(stream, 15)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "DC%d %.2f,", Lum->get_id(), DC.last());
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "DC%d %.2f,", G_L1->get_id(), G_L1->led.dutty_cicle);
   }
   if (READ(stream, 14)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "Ref%d %.3f,", Lum->get_id(), ref.last());
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "Ref%d %.3f,", G_L1->get_id(), G_L1->contr.get_ref());
   }
   if (READ(stream, 13)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "L_meas%d %.5f,", Lum->get_id(), L_meas.last());
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "L_meas%d %.5f,", G_L1->get_id(), G_L1->ldr.lux);
   }
   if (READ(stream, 12)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "L_pred%d %.5f,", Lum->get_id(), L_pred.last());
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "L_pred%d %.5f,", G_L1->get_id(), G_L1->sim.get_current_l_prediction());
   }
   if (READ(stream, 11)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "err%d %.7f,", Lum->get_id(), ref.last() - L_meas.last());
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "err%d %.7f,", G_L1->get_id(), G_L1->contr.get_ref() - G_L1->ldr.lux);
   }
   if (READ(stream, 10)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "prop%d %.5f,", Lum->get_id(), (ref.last() - L_meas.last()) * Lum->contr.get_kp());
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "prop%d %.5f,", G_L1->get_id(), (G_L1->contr.get_ref() - G_L1->ldr.lux) * G_L1->contr.get_kp());
   }
   if (READ(stream, 9)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "int%d %.5f,", Lum->get_id(), integral.last());
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "int%d %.5f,", G_L1->get_id(), G_L1->contr.get_integral());
   }
   if (READ(stream, 8)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "u_ff%d %.6f,", Lum->get_id(), (ref.last() - Lum->sim.get_L0()) / Lum->sim.get_G());
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "u_ff%d %.6f,", G_L1->get_id(), (G_L1->contr.get_ref() - G_L1->sim.get_L0()) / G_L1->sim.get_G());
   }
   if (READ(stream, 7)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "u_fb%d %.6f,", Lum->get_id(), (ref.last() - L_meas.last()) * Lum->contr.get_kp() + integral.last());
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "u_fb%d %.6f,", G_L1->get_id(), (G_L1->contr.get_ref() - G_L1->ldr.lux) * G_L1->contr.get_kp() + G_L1->contr.get_integral());
   }
   if (READ(stream, 6)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "u%d %.7f,", Lum->get_id(), ((ref.last() - Lum->sim.get_L0()) / Lum->sim.get_G()) + ((ref.last() - L_meas.last()) * Lum->contr.get_kp() + integral.last()));
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "u%d %.7f,", G_L1->get_id(), ((G_L1->contr.get_ref() - G_L1->sim.get_L0()) / G_L1->sim.get_G()) + ((G_L1->contr.get_ref() - G_L1->ldr.lux) * G_L1->contr.get_kp() + G_L1->contr.get_integral()));
   }
   if (READ(stream, 5)) {
-    // snprintf(buff + strlen(buff), 300 - strlen(buff), "pwr%d %.3f,", Lum->get_id(), pwr.last());
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "pwr%d %.3f,", G_L1->get_id(), G_L1->get_curr_pwr());
   }
   if (READ(stream, 4)) {
-    // snprintf(buff + strlen(buff), 300 - strlen(buff), "ex_ilu%d %.5f,", Lum->get_id(), ext_ilu.last());
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "ex_ilu%d %.5f,", G_L1->get_id(), G_L1->get_ext_ilu());
   }
   if (READ(stream, 3)) {
-    // snprintf(buff + strlen(buff), 300 - strlen(buff), "flck%d %.4f,", Lum->get_id(), flicker.last());
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "flck%d %.4f,", G_L1->get_id(), G_L1->get_curr_flicker());
   }
   if (strlen(buff) > 4) {
     snprintf(buff + strlen(buff), 300 - strlen(buff), "t %d", millis());
-    // buff[strlen(buff) - 1] = '\0';
     Serial.println(buff);
   }
 }
 /**
  * @brief Controller and simulator routine implemented on the main timer callback
- * 
+ *
  * @param t Timer structure
- * @return true 
- * @return false 
+ * @return true
+ * @return false
  */
 bool main_timer_callback(struct repeating_timer *t) {
   G_L1->sim.sim_callback(G_L1->contr.get_u_ff());

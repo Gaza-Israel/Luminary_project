@@ -10,12 +10,8 @@
 #include "Simulator.h"
 /*
   TODO
-  Fix average_measure - sometimes Resistance is overflowing
   fix parser for multiple luminaires
-  change variable buffer type (reduce size float to int)
-  Fix secundary buffer variables (calculated value based on other buffers)
   Switch conversions on LDR to inline functions
-  fix antinwindup disabled not summing u_ff with u_fb to get u
  */
 
 
@@ -51,13 +47,11 @@ void setup() {
   init_globals(&L1);        // Passes the Luminaire object to the parser
   myparser.setup();         // Setup the commands on the parser
   L1.led.start_sequence();  // Blinks the led to signal its ready for serial connections
-
+  Serial.println(sizeof(L1));
   I2C::config_I2C(12, 13, 10, 11);
   I2C::print_I2C1_full_address();
   Serial.println(I2C::get_I2C1_address());
   I2C_message_protocol::broadcast_node(ID);
-
-  I2C::in_buff.pop();
 
 
   Serial.print("Setting Coefficients...\n");
