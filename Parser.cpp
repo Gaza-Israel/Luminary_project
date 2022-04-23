@@ -2,7 +2,7 @@
 
 #include <CircularBuffer.h>
 
-#include "I2C.h"
+#include "I2C_message_protocol.h"
 #include "Luminaire.h"
 #include "Streaming.h"
 
@@ -47,9 +47,6 @@ CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> ref;       // (ref * 1000)
 CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> L_meas;    // (L_meas * 1000)
 CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> L_pred;    // (L_pred * 1000)
 CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> integral;  //(integral * 1000)
-// CircularBuffer<float, 60 * CONTROLLER_FREQ> pwr;
-// CircularBuffer<float, 60 * CONTROLLER_FREQ> ext_ilu;
-// CircularBuffer<float, 60 * CONTROLLER_FREQ> flicker;
 
 /* stream legend
  *  bit | 15 | 14  |   13   |   12   |  11 |  10  |  9  |   8  |   7  | 6 |  5  |    4    |    3    | 2 | 1 | 0
@@ -107,15 +104,6 @@ void Parser::setup() {
   _parser.registerCommand("c_g", "idd", &set_controller_gains);
 }
 /**
- * @brief Get the Luminary object by its id (currently only works for ID = 1)
- *
- * @param id Luminary ID
- * @return Luminary*
- */
-Luminary *get_lum_by_id(int id) {
-  return G_L1;
-}
-/**
  * @brief Calculate a Hash value for an string
  *
  * @param str String to be hased
@@ -133,100 +121,169 @@ const unsigned long hash(const char *str) {
 void Parser::set_dc(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   float dc = args[1].asDouble;
-  Luminary *L = get_lum_by_id(id);
-  L->led.set_dutty_cicle(dc);
+  if (id!=G_L1->get_id()){
+    bool msg_sent = I2C_message_protocol::set_dc(id,dc);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  G_L1->led.set_dutty_cicle(dc);
   strlcpy(response, "ack", MyCommandParser::MAX_RESPONSE_SIZE);
 }
 void Parser::get_dc(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "d%d %.3f", id, L->led.dutty_cicle);
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::get_dc(id);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "d%d %.3f", id, G_L1->led.dutty_cicle);
 }
 void Parser::set_lux_ref(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   float ref = args[1].asDouble;
   bool occ = args[2].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  L->contr.set_ref(ref, occ);
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::set_lux_ref(id, ref, occ);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  G_L1->contr.set_ref(ref, occ);
   strlcpy(response, "ack", MyCommandParser::MAX_RESPONSE_SIZE);
 }
 void Parser::get_lux_ref(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "r%d %.6f", id, L->contr.get_ref());
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::set_dc(id);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "r%d %.6f", id, G_L1->contr.get_ref());
 }
 void Parser::get_lux_meas(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "r%d %.6f", id, L->ldr.lux);
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::get_lux_meas(id);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "r%d %.6f", id, G_L1->ldr.lux);
 }
 void Parser::set_occ_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   bool occ = args[1].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  L->contr.set_occ(occ);
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::set_occ_status(id,occ);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  G_L1->contr.set_occ(occ);
   strlcpy(response, "ack", MyCommandParser::MAX_RESPONSE_SIZE);
 }
 void Parser::get_occ_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "o%d %d", id, L->contr.get_occ());
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::get_occ_status(id);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "o%d %d", id, G_L1->contr.get_occ());
 }
 void Parser::set_anti_windup_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   bool anti_windup_on = args[1].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  L->contr.set_anti_windup(anti_windup_on);
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::set_anti_windup_status(id,anti_windup_on);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  G_L1->contr.set_anti_windup(anti_windup_on);
   strlcpy(response, "ack", MyCommandParser::MAX_RESPONSE_SIZE);
 }
 void Parser::get_anti_windup_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "a%d %d", id, L->contr.get_anti_windup_status());
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::get_anti_windup_status(id);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "a%d %d", id, G_L1->contr.get_anti_windup_status());
 }
 void Parser::set_ff_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   bool ff_on = args[1].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  L->contr.set_ff(ff_on);
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::set_anti_windup_status(id,ff_on);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  G_L1->contr.set_ff(ff_on);
   strlcpy(response, "ack", MyCommandParser::MAX_RESPONSE_SIZE);
 }
 void Parser::get_ff_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "w%d %d", id, L->contr.get_u_ff_status());
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::get_ff_status(id);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "w%d %d", id, G_L1->contr.get_u_ff_status());
 }
 void Parser::set_fb_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   bool fb_on = args[1].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  L->contr.set_fb(fb_on);
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::set_fb_status(id,fb_on);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  G_L1->contr.set_fb(fb_on);
   strlcpy(response, "ack", MyCommandParser::MAX_RESPONSE_SIZE);
 }
 void Parser::get_fb_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "w%d %d", id, L->contr.get_u_fb_status());
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::get_fb_status(id);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "w%d %d", id, G_L1->contr.get_u_fb_status());
 }
 void Parser::get_ext_ilu(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "x%d %.5f", id, L->get_ext_ilu());
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::get_ext_ilu(id);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "x%d %.5f", id, G_L1->get_ext_ilu());
 }
 void Parser::get_curr_pwr(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "p%d %.5f", id, L->get_curr_pwr());
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::get_curr_pwr(id);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "p%d %.5f", id, G_L1->get_curr_pwr());
 }
 void Parser::get_time(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
-  Luminary *L = get_lum_by_id(id);
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::get_time(id);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
   snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "t%d %.3f", id, float(millis()) / 1000);
 }
 void Parser::toggle_stream(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   char *var = args[1].asString;
   unsigned long var_h = hash(var);
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::toggle_stream(id,var_h);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
   switch (var_h) {
     case DC_HASH:
       TOGGLE(stream, 15);
@@ -276,11 +333,15 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   char *var = args[1].asString;
   unsigned long var_h = hash(var);
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::get_hist(id,var_h);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
   char buff[20];
-  Luminary *L = get_lum_by_id(id);
   switch (var_h) {
     case DC_HASH:
-      snprintf(buff, 20, "h dc%d ", L->get_id());
+      snprintf(buff, 20, "h dc%d ", G_L1->get_id());
       Serial.print(buff);
 
       for (uint16_t i = 0; i < DC.size(); i++) {
@@ -289,7 +350,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       }
       break;
     case REF_HASH:
-      snprintf(buff, 20, "h r%d ", L->get_id());
+      snprintf(buff, 20, "h r%d ", G_L1->get_id());
       Serial.print(buff);
 
       for (uint16_t i = 0; i < ref.size(); i++) {
@@ -298,7 +359,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       }
       break;
     case L_MEAS_HASH:
-      snprintf(buff, 20, "h lms%d ", L->get_id());
+      snprintf(buff, 20, "h lms%d ", G_L1->get_id());
       Serial.print(buff);
 
       for (uint16_t i = 0; i < L_meas.size(); i++) {
@@ -307,7 +368,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       }
       break;
     case L_PRED_HASH:
-      snprintf(buff, 20, "h lp%d ", L->get_id());
+      snprintf(buff, 20, "h lp%d ", G_L1->get_id());
       Serial.print(buff);
 
       for (uint16_t i = 0; i < L_pred.size(); i++) {
@@ -316,7 +377,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       }
       break;
     case ERR_HASH:
-      snprintf(buff, 20, "h e%d ", L->get_id());
+      snprintf(buff, 20, "h e%d ", G_L1->get_id());
       Serial.print(buff);
 
       for (uint16_t i = 0; i < ref.size(); i++) {
@@ -325,7 +386,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       }
       break;
     case PROP_HASH:
-      snprintf(buff, 20, "h p%d ", L->get_id());
+      snprintf(buff, 20, "h p%d ", G_L1->get_id());
       Serial.print(buff);
 
       for (uint16_t i = 0; i < ref.size(); i++) {
@@ -334,7 +395,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       }
       break;
     case INTEGRAL_HASH:
-      snprintf(buff, 20, "h int%d ", L->get_id());
+      snprintf(buff, 20, "h int%d ", G_L1->get_id());
       Serial.print(buff);
 
       for (uint16_t i = 0; i < ref.size(); i++) {
@@ -343,7 +404,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       }
       break;
     case U_FF_HASH:
-      snprintf(buff, 20, "h u_ff%d ", L->get_id());
+      snprintf(buff, 20, "h u_ff%d ", G_L1->get_id());
       Serial.print(buff);
 
       for (uint16_t i = 0; i < ref.size(); i++) {
@@ -352,7 +413,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       }
       break;
     case U_FB_HASH:
-      snprintf(buff, 20, "h u_fb%d ", L->get_id());
+      snprintf(buff, 20, "h u_fb%d ", G_L1->get_id());
       Serial.print(buff);
 
       for (uint16_t i = 0; i < ref.size(); i++) {
@@ -361,18 +422,18 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       }
       break;
     case U:
-      snprintf(buff, 20, "h u%d ", L->get_id());
+      snprintf(buff, 20, "h u%d ", G_L1->get_id());
       Serial.print(buff);
       float u_fb, u_ff;
       for (uint16_t i = 0; i < ref.size(); i++) {
-        u_fb = L->contr.get_u_fb_status() * (float(integral[i]) / 1000 + float(ref[i] - L_meas[i]) * G_L1->contr.get_kp() / 1000);
-        u_ff = L->contr.get_u_ff_status() * ((float(ref[i]) / 1000 - G_L1->sim.get_L0()) / G_L1->sim.get_G());
+        u_fb = G_L1->contr.get_u_fb_status() * (float(integral[i]) / 1000 + float(ref[i] - L_meas[i]) * G_L1->contr.get_kp() / 1000);
+        u_ff = G_L1->contr.get_u_ff_status() * ((float(ref[i]) / 1000 - G_L1->sim.get_L0()) / G_L1->sim.get_G());
         snprintf(buff, 20, ",%.3f", u_fb + u_ff);
         Serial.print(buff);
       }
       break;
     case PWR_HASH:
-      snprintf(buff, 20, "h pw%d ", L->get_id());
+      snprintf(buff, 20, "h pw%d ", G_L1->get_id());
       Serial.print(buff);
       for (uint16_t i = 0; i < DC.size(); i++) {
         snprintf(buff, 20, ",%.3f", (float(DC[i]) / 65535) * AVRG_LED_MAX_CURRENT * Vcc);
@@ -380,7 +441,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       }
       break;
     case EXT_ILU_HASH:
-      snprintf(buff, 20, "h xi%d ", L->get_id());
+      snprintf(buff, 20, "h xi%d ", G_L1->get_id());
       Serial.print(buff);
       for (uint16_t i = 0; i < L_meas.size(); i++) {
         snprintf(buff, 20, ",%.3f", float(L_meas[i] - L_pred[i]) / 1000);
@@ -388,7 +449,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       }
       break;
     case FLICKER_HASH:
-      snprintf(buff, 20, "h fl%d ", L->get_id());
+      snprintf(buff, 20, "h fl%d ", G_L1->get_id());
       Serial.print(buff);
       float flicker, l, l1, l2;
       for (uint16_t i = 2; i < L_meas.size(); i++) {
@@ -408,25 +469,41 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
 }
 void Parser::get_acc_enrgy_comsumption(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "e%d %.3f", id, L->get_acc_energy());
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::get_acc_enrgy_comsumption(id);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "e%d %.3f", id, G_L1->get_acc_energy());
 }
 void Parser::get_acc_visibility_err(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "v%d %.3f", id, L->get_acc_visibility_err());
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::get_acc_visibility_err(id);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "v%d %.3f", id, G_L1->get_acc_visibility_err());
 }
 void Parser::get_acc_flicker(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
-  Luminary *L = get_lum_by_id(id);
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "f%d %.3f", id, L->get_acc_flicker());
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::get_acc_flicker(id);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "f%d %.3f", id, G_L1->get_acc_flicker());
 }
 void Parser::set_controller_gains(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   float kp = args[1].asDouble;
   float ki = args[2].asDouble;
-  Luminary *L = get_lum_by_id(id);
-  L->contr.set_gains(kp, ki);
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::set_controller_gains(id,kp,ki);
+    strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
+    return;
+  }
+  G_L1->contr.set_gains(kp, ki);
   snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "ack");
 }
 

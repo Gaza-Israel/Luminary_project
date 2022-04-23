@@ -10,7 +10,6 @@
 #include "Simulator.h"
 /*
   TODO
-  fix parser for multiple luminaires
   Switch conversions on LDR to inline functions
  */
 
@@ -47,10 +46,11 @@ void setup() {
   init_globals(&L1);        // Passes the Luminaire object to the parser
   myparser.setup();         // Setup the commands on the parser
   L1.led.start_sequence();  // Blinks the led to signal its ready for serial connections
-  Serial.println(sizeof(L1));
+  
   I2C::config_I2C(12, 13, 10, 11);
   I2C::print_I2C1_full_address();
   Serial.println(I2C::get_I2C1_address());
+  L1.set_id(I2C::get_I2C1_address());
   I2C_message_protocol::broadcast_node(ID);
 
 
