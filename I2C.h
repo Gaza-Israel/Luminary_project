@@ -26,11 +26,13 @@ int send_message(i2c_message msg, uint8_t address);
 void recv(int len);
 void read_buffer();
 
-uint8_t calculate_pec(byte bytes[],int len);
+bool buffer_not_empty();
+i2c_message pop_message_from_buffer();
+
+uint8_t calculate_pec(byte bytes[], int len);
 
 uint8_t get_I2C1_address();
 void print_I2C1_full_address();
-
 
 }  // namespace I2C
 

@@ -78,6 +78,9 @@ void setup() {
 
   add_repeating_timer_us(-1000000 / SIMULATOR_FREQ, main_timer_callback, NULL, &main_timer);
   Serial.println("Ready");
+  char buff[50];
+  snprintf(buff,50,"Size of float %d - Size of double %d",sizeof(float),sizeof(double));
+  Serial.println(buff);
 #ifdef AUTO_TEST
   Serial.println("DC,Ref,L_meas,L_pred,err,prop,in,u_ff,u_fb,u,pwr,ex_ilu,flck,t");
 #endif
@@ -124,14 +127,6 @@ void loop() {
    * be handled and prints the return of the parser
    */
 
-  tx_message.data = 42;
-  tx_message.msg_id = 10;
-  I2C::send_message(tx_message, 0x00);
-  I2C::read_buffer();
-  I2C::read_buffer();
-  I2C::read_buffer();
-
-
   if (Serial.available()) {
     char line[128];
     size_t lineLength = Serial.readBytesUntil('\n', line, 127);
@@ -140,5 +135,8 @@ void loop() {
     char response[MyCommandParser::MAX_RESPONSE_SIZE];
     myparser._parser.processCommand(line, response);
     Serial.println(response);
+  }
+  if (I2C::buffer_not_empty()){
+    I2C_message_protocol::parse_message(I2C::pop_message_from_buffer(),&L1);
   }
 }

@@ -24,7 +24,7 @@ void config_I2C(int SDA0, int SCL0, int SDA1, int SCL1) {
 }
 
 int send_message(i2c_message msg, uint8_t address) {
-  byte tx_buff[FRAME_SIZE];  // size 10 (struct pad to 16, but only 10 are necessary)
+  byte tx_buff[FRAME_SIZE];  // size 11 (struct pad to 16, but only 11 are necessary)
 
   msg.node = get_I2C1_address();
   msg.ts = millis();
@@ -79,6 +79,13 @@ void read_buffer() {
     snprintf(buff, 100, "Received message from %d, at %d, with id %d, data %d, and CRC-8 of %d", msg.node, msg.ts, msg.msg_id, msg.data, msg.pec);
     Serial.println(buff);
   }
+}
+bool buffer_not_empty(){
+  return in_buff.size() != 0;
+}
+
+i2c_message pop_message_from_buffer(){
+  return in_buff.pop();
 }
 
 uint8_t calculate_pec(byte bytes[], int len) {
