@@ -6,52 +6,7 @@
 #include "Luminaire.h"
 #include "Streaming.h"
 
-#define DC_HASH 5863308
-#define REF_HASH 177687
-#define L_MEAS_HASH 193498321
-#define L_PRED_HASH 5863585
-#define ERR_HASH 177674
-#define PROP_HASH 177685
-#define INTEGRAL_HASH 193495088
-#define U_FF_HASH 193507878
-#define U_FB_HASH 193507874
-#define U 177690
-#define PWR_HASH 5863724
-#define EXT_ILU_HASH 5863974
-#define FLICKER_HASH 5863383
-/*
-dc=5863308
-r=177687
-lms=193498321
-lp=5863585
-e=177674
-p=177685
-int=193495088
-uff=193507878
-ufb=193507874
-u=177690
-pw=5863724
-xi=5863974
-fl=5863383
-*/
-
-#define SET(byte, nbit) ((byte) |= (1 << (nbit)))
-#define CLEAR(byte, nbit) ((byte) &= ~(1 << (nbit)))
-#define TOGGLE(byte, nbit) ((byte) ^= (1 << (nbit)))
-#define READ(byte, nbit) ((byte) & (1 << (nbit)))
-
 Luminary *G_L1;
-uint16_t stream = 0;
-CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> DC;        // 0 - 65535 (0-100% times 65535/100)
-CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> ref;       // (ref * 1000)
-CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> L_meas;    // (L_meas * 1000)
-CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> L_pred;    // (L_pred * 1000)
-CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> integral;  //(integral * 1000)
-
-/* stream legend
- *  bit | 15 | 14  |   13   |   12   |  11 |  10  |  9  |   8  |   7  | 6 |  5  |    4    |    3    | 2 | 1 | 0
- *  var | DC | ref | L_meas | L_pred | err | prop | int | u_ff | u_fb | u | pwr | ext_ilu | flicker | - | - | -
- */
 
 // #define AUTO_TEST
 /**
@@ -153,7 +108,7 @@ void Parser::set_lux_ref(MyCommandParser::Argument *args, char *response) {
 void Parser::get_lux_ref(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   if (id != G_L1->get_id()) {
-    bool msg_sent = I2C_message_protocol::set_dc(id);
+    bool msg_sent = I2C_message_protocol::get_lux_ref(id);
     strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
     return;
   }
@@ -166,7 +121,7 @@ void Parser::get_lux_meas(MyCommandParser::Argument *args, char *response) {
     strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
     return;
   }
-  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "r%d %.6f", id, G_L1->ldr.lux);
+  snprintf(response, MyCommandParser::MAX_RESPONSE_SIZE, "l%d %.6f", id, G_L1->ldr.lux);
 }
 void Parser::set_occ_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
@@ -284,51 +239,9 @@ void Parser::toggle_stream(MyCommandParser::Argument *args, char *response) {
     strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
     return;
   }
-  switch (var_h) {
-    case DC_HASH:
-      TOGGLE(stream, 15);
-      break;
-    case REF_HASH:
-      TOGGLE(stream, 14);
-      break;
-    case L_MEAS_HASH:
-      TOGGLE(stream, 13);
-      break;
-    case L_PRED_HASH:
-      TOGGLE(stream, 12);
-      break;
-    case ERR_HASH:
-      TOGGLE(stream, 11);
-      break;
-    case PROP_HASH:
-      TOGGLE(stream, 10);
-      break;
-    case INTEGRAL_HASH:
-      TOGGLE(stream, 9);
-      break;
-    case U_FF_HASH:
-      TOGGLE(stream, 8);
-      break;
-    case U_FB_HASH:
-      TOGGLE(stream, 7);
-      break;
-    case U:
-      TOGGLE(stream, 6);
-      break;
-    case PWR_HASH:
-      TOGGLE(stream, 5);
-      break;
-    case EXT_ILU_HASH:
-      TOGGLE(stream, 4);
-      break;
-    case FLICKER_HASH:
-      TOGGLE(stream, 3);
-      break;
-    default:
-      Serial.println("Var not found");
-      break;
-  }
+  G_L1->toggle_serial_stream(var_h);
 }
+
 void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   char *var = args[1].asString;
@@ -344,8 +257,8 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       snprintf(buff, 20, "h dc%d ", G_L1->get_id());
       Serial.print(buff);
 
-      for (uint16_t i = 0; i < DC.size(); i++) {
-        snprintf(buff, 20, ",%.3f", float(DC[i]) * 100 / 65535);
+      for (uint16_t i = 0; i < G_L1->DC.size(); i++) {
+        snprintf(buff, 20, ",%.3f", float(G_L1->DC[i]) * 100 / 65535);
         Serial.print(buff);
       }
       break;
@@ -353,8 +266,8 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       snprintf(buff, 20, "h r%d ", G_L1->get_id());
       Serial.print(buff);
 
-      for (uint16_t i = 0; i < ref.size(); i++) {
-        snprintf(buff, 20, ",%.3f", float(ref[i]) / 1000);
+      for (uint16_t i = 0; i < G_L1->ref.size(); i++) {
+        snprintf(buff, 20, ",%.3f", float(G_L1->ref[i]) / 1000);
         Serial.print(buff);
       }
       break;
@@ -362,8 +275,8 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       snprintf(buff, 20, "h lms%d ", G_L1->get_id());
       Serial.print(buff);
 
-      for (uint16_t i = 0; i < L_meas.size(); i++) {
-        snprintf(buff, 20, ",%.3f", float(L_meas[i]) / 1000);
+      for (uint16_t i = 0; i < G_L1->L_meas.size(); i++) {
+        snprintf(buff, 20, ",%.3f", float(G_L1->L_meas[i]) / 1000);
         Serial.print(buff);
       }
       break;
@@ -371,8 +284,8 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       snprintf(buff, 20, "h lp%d ", G_L1->get_id());
       Serial.print(buff);
 
-      for (uint16_t i = 0; i < L_pred.size(); i++) {
-        snprintf(buff, 20, ",%.3f", float(L_pred[i]) / 1000);
+      for (uint16_t i = 0; i < G_L1->L_pred.size(); i++) {
+        snprintf(buff, 20, ",%.3f", float(G_L1->L_pred[i]) / 1000);
         Serial.print(buff);
       }
       break;
@@ -380,8 +293,8 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       snprintf(buff, 20, "h e%d ", G_L1->get_id());
       Serial.print(buff);
 
-      for (uint16_t i = 0; i < ref.size(); i++) {
-        snprintf(buff, 20, ",%.3f", float(ref[i] - L_meas[i]) / 1000);
+      for (uint16_t i = 0; i < G_L1->ref.size(); i++) {
+        snprintf(buff, 20, ",%.3f", float(G_L1->ref[i] - G_L1->L_meas[i]) / 1000);
         Serial.print(buff);
       }
       break;
@@ -389,8 +302,8 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       snprintf(buff, 20, "h p%d ", G_L1->get_id());
       Serial.print(buff);
 
-      for (uint16_t i = 0; i < ref.size(); i++) {
-        snprintf(buff, 20, ",%.3f", float(ref[i] - L_meas[i]) * G_L1->contr.get_kp() / 1000);
+      for (uint16_t i = 0; i < G_L1->ref.size(); i++) {
+        snprintf(buff, 20, ",%.3f", float(G_L1->ref[i] - G_L1->L_meas[i]) * G_L1->contr.get_kp() / 1000);
         Serial.print(buff);
       }
       break;
@@ -398,8 +311,8 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       snprintf(buff, 20, "h int%d ", G_L1->get_id());
       Serial.print(buff);
 
-      for (uint16_t i = 0; i < ref.size(); i++) {
-        snprintf(buff, 20, ",%.3f", float(integral[i]) / 1000);
+      for (uint16_t i = 0; i < G_L1->ref.size(); i++) {
+        snprintf(buff, 20, ",%.3f", float(G_L1->integral[i]) / 1000);
         Serial.print(buff);
       }
       break;
@@ -407,8 +320,8 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       snprintf(buff, 20, "h u_ff%d ", G_L1->get_id());
       Serial.print(buff);
 
-      for (uint16_t i = 0; i < ref.size(); i++) {
-        snprintf(buff, 20, ",%.3f", (float(ref[i]) / 1000 - G_L1->sim.get_L0()) / G_L1->sim.get_G());
+      for (uint16_t i = 0; i < G_L1->ref.size(); i++) {
+        snprintf(buff, 20, ",%.3f", (float(G_L1->ref[i]) / 1000 - G_L1->sim.get_L0()) / G_L1->sim.get_G());
         Serial.print(buff);
       }
       break;
@@ -416,18 +329,18 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       snprintf(buff, 20, "h u_fb%d ", G_L1->get_id());
       Serial.print(buff);
 
-      for (uint16_t i = 0; i < ref.size(); i++) {
-        snprintf(buff, 20, ",%.3f", float(integral[i]) / 1000 + float(ref[i] - L_meas[i]) * G_L1->contr.get_kp() / 1000);
+      for (uint16_t i = 0; i < G_L1->ref.size(); i++) {
+        snprintf(buff, 20, ",%.3f", float(G_L1->integral[i]) / 1000 + float(G_L1->ref[i] - G_L1->L_meas[i]) * G_L1->contr.get_kp() / 1000);
         Serial.print(buff);
       }
       break;
-    case U:
+    case U_HASH:
       snprintf(buff, 20, "h u%d ", G_L1->get_id());
       Serial.print(buff);
       float u_fb, u_ff;
-      for (uint16_t i = 0; i < ref.size(); i++) {
-        u_fb = G_L1->contr.get_u_fb_status() * (float(integral[i]) / 1000 + float(ref[i] - L_meas[i]) * G_L1->contr.get_kp() / 1000);
-        u_ff = G_L1->contr.get_u_ff_status() * ((float(ref[i]) / 1000 - G_L1->sim.get_L0()) / G_L1->sim.get_G());
+      for (uint16_t i = 0; i < G_L1->ref.size(); i++) {
+        u_fb = G_L1->contr.get_u_fb_status() * (float(G_L1->integral[i]) / 1000 + float(G_L1->ref[i] - G_L1->L_meas[i]) * G_L1->contr.get_kp() / 1000);
+        u_ff = G_L1->contr.get_u_ff_status() * ((float(G_L1->ref[i]) / 1000 - G_L1->sim.get_L0()) / G_L1->sim.get_G());
         snprintf(buff, 20, ",%.3f", u_fb + u_ff);
         Serial.print(buff);
       }
@@ -435,16 +348,16 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
     case PWR_HASH:
       snprintf(buff, 20, "h pw%d ", G_L1->get_id());
       Serial.print(buff);
-      for (uint16_t i = 0; i < DC.size(); i++) {
-        snprintf(buff, 20, ",%.3f", (float(DC[i]) / 65535) * AVRG_LED_MAX_CURRENT * Vcc);
+      for (uint16_t i = 0; i < G_L1->DC.size(); i++) {
+        snprintf(buff, 20, ",%.3f", (float(G_L1->DC[i]) / 65535) * AVRG_LED_MAX_CURRENT * Vcc);
         Serial.print(buff);
       }
       break;
     case EXT_ILU_HASH:
       snprintf(buff, 20, "h xi%d ", G_L1->get_id());
       Serial.print(buff);
-      for (uint16_t i = 0; i < L_meas.size(); i++) {
-        snprintf(buff, 20, ",%.3f", float(L_meas[i] - L_pred[i]) / 1000);
+      for (uint16_t i = 0; i < G_L1->L_meas.size(); i++) {
+        snprintf(buff, 20, ",%.3f", float(G_L1->L_meas[i] - G_L1->L_pred[i]) / 1000);
         Serial.print(buff);
       }
       break;
@@ -452,10 +365,10 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
       snprintf(buff, 20, "h fl%d ", G_L1->get_id());
       Serial.print(buff);
       float flicker, l, l1, l2;
-      for (uint16_t i = 2; i < L_meas.size(); i++) {
-        l = float(L_meas[i]) / 1000;
-        l1 = float(L_meas[i - 1]) / 1000;
-        l2 = float(L_meas[i - 2]) / 1000;
+      for (uint16_t i = 2; i < G_L1->L_meas.size(); i++) {
+        l = float(G_L1->L_meas[i]) / 1000;
+        l1 = float(G_L1->L_meas[i - 1]) / 1000;
+        l2 = float(G_L1->L_meas[i - 2]) / 1000;
         flicker = ((abs(l - l1) + abs(l1 - l2)) * CONTROLLER_FREQ / 2) * ((l - l1) * (l1 - l2) < 0);
         snprintf(buff, 20, ",%.4f", flicker);
         Serial.print(buff);
@@ -513,65 +426,6 @@ void init_globals(Luminary *lum) {
   G_L1 = lum;
 }
 /**
- * @brief Updates the circular buffer with state variables
- *
- */
-void update_hist() {
-  DC.push((G_L1->led.dutty_cicle / 100) * 65535);
-  ref.push(G_L1->contr.get_ref() * 1000);
-  L_meas.push(G_L1->ldr.lux * 1000);
-  L_pred.push(G_L1->sim.get_current_l_prediction() * 1000);
-  integral.push(G_L1->contr.get_integral() * 1000);
-}
-
-void print_stream(Luminary *Lum) {
-  char buff[300];
-  snprintf_P(buff, 300, "s ");
-  if (READ(stream, 15)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "DC%d %.2f,", G_L1->get_id(), G_L1->led.dutty_cicle);
-  }
-  if (READ(stream, 14)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "Ref%d %.3f,", G_L1->get_id(), G_L1->contr.get_ref());
-  }
-  if (READ(stream, 13)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "L_meas%d %.5f,", G_L1->get_id(), G_L1->ldr.lux);
-  }
-  if (READ(stream, 12)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "L_pred%d %.5f,", G_L1->get_id(), G_L1->sim.get_current_l_prediction());
-  }
-  if (READ(stream, 11)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "err%d %.7f,", G_L1->get_id(), G_L1->contr.get_ref() - G_L1->ldr.lux);
-  }
-  if (READ(stream, 10)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "prop%d %.5f,", G_L1->get_id(), (G_L1->contr.get_ref() - G_L1->ldr.lux) * G_L1->contr.get_kp());
-  }
-  if (READ(stream, 9)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "int%d %.5f,", G_L1->get_id(), G_L1->contr.get_integral());
-  }
-  if (READ(stream, 8)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "u_ff%d %.6f,", G_L1->get_id(), (G_L1->contr.get_ref() - G_L1->sim.get_L0()) / G_L1->sim.get_G());
-  }
-  if (READ(stream, 7)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "u_fb%d %.6f,", G_L1->get_id(), (G_L1->contr.get_ref() - G_L1->ldr.lux) * G_L1->contr.get_kp() + G_L1->contr.get_integral());
-  }
-  if (READ(stream, 6)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "u%d %.7f,", G_L1->get_id(), ((G_L1->contr.get_ref() - G_L1->sim.get_L0()) / G_L1->sim.get_G()) + ((G_L1->contr.get_ref() - G_L1->ldr.lux) * G_L1->contr.get_kp() + G_L1->contr.get_integral()));
-  }
-  if (READ(stream, 5)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "pwr%d %.3f,", G_L1->get_id(), G_L1->get_curr_pwr());
-  }
-  if (READ(stream, 4)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "ex_ilu%d %.5f,", G_L1->get_id(), G_L1->get_ext_ilu());
-  }
-  if (READ(stream, 3)) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "flck%d %.4f,", G_L1->get_id(), G_L1->get_curr_flicker());
-  }
-  if (strlen(buff) > 4) {
-    snprintf(buff + strlen(buff), 300 - strlen(buff), "t %d", millis());
-    Serial.println(buff);
-  }
-}
-/**
  * @brief Controller and simulator routine implemented on the main timer callback
  *
  * @param t Timer structure
@@ -586,9 +440,9 @@ bool main_timer_callback(struct repeating_timer *t) {
   G_L1->contr.update_led_DC();
   G_L1->calc_ext_ilu();
   G_L1->calc_pwr();
-  int size_buff = L_meas.size();
-  G_L1->calc_metrics(L_meas[size_buff - 1], L_meas[size_buff - 2], L_meas[size_buff - 3]);
-  update_hist();
-  print_stream(G_L1);
+  int size_buff = G_L1->L_meas.size();
+  G_L1->calc_metrics(G_L1->L_meas[size_buff - 1], G_L1->L_meas[size_buff - 2], G_L1->L_meas[size_buff - 3]);
+  G_L1->update_hist();
+  G_L1->print_stream();
   return true;
 }

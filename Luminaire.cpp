@@ -1,5 +1,32 @@
 #include "Luminaire.h"
 
+
+/*
+dc=5863308
+r=177687
+lms=193498321
+lp=5863585
+e=177674
+p=177685
+int=193495088
+uff=193507878
+ufb=193507874
+u=177690
+pw=5863724
+xi=5863974
+fl=5863383
+*/
+
+/* stream legend
+ *  bit | 15 | 14  |   13   |   12   |  11 |  10  |  9  |   8  |   7  | 6 |  5  |    4    |    3    | 2 | 1 | 0
+ *  var | DC | ref | L_meas | L_pred | err | prop | int | u_ff | u_fb | u | pwr | ext_ilu | flicker | - | - | -
+ */
+
+#define SET(byte, nbit) ((byte) |= (1 << (nbit)))
+#define CLEAR(byte, nbit) ((byte) &= ~(1 << (nbit)))
+#define TOGGLE(byte, nbit) ((byte) ^= (1 << (nbit)))
+#define READ(byte, nbit) ((byte) & (1 << (nbit)))
+
 /**
  * @brief Construct a new Luminary:: Luminary object.
  *  This object handle the creation of the LED, LDR, Controller, and Simulator objects. 
@@ -126,4 +153,157 @@ int Luminary::get_id() {
 }
 void Luminary::set_id(int id){
   this->_id = id;
+}
+
+void Luminary::toggle_i2c_stream(unsigned long hash){
+    switch (hash) {
+    case DC_HASH:
+      TOGGLE(this->_i2c_stream, 15);
+      break;
+    case REF_HASH:
+      TOGGLE(this->_i2c_stream, 14);
+      break;
+    case L_MEAS_HASH:
+      TOGGLE(this->_i2c_stream, 13);
+      break;
+    case L_PRED_HASH:
+      TOGGLE(this->_i2c_stream, 12);
+      break;
+    case ERR_HASH:
+      TOGGLE(this->_i2c_stream, 11);
+      break;
+    case PROP_HASH:
+      TOGGLE(this->_i2c_stream, 10);
+      break;
+    case INTEGRAL_HASH:
+      TOGGLE(this->_i2c_stream, 9);
+      break;
+    case U_FF_HASH:
+      TOGGLE(this->_i2c_stream, 8);
+      break;
+    case U_FB_HASH:
+      TOGGLE(this->_i2c_stream, 7);
+      break;
+    case U_HASH:
+      TOGGLE(this->_i2c_stream, 6);
+      break;
+    case PWR_HASH:
+      TOGGLE(this->_i2c_stream, 5);
+      break;
+    case EXT_ILU_HASH:
+      TOGGLE(this->_i2c_stream, 4);
+      break;
+    case FLICKER_HASH:
+      TOGGLE(this->_i2c_stream, 3);
+      break;
+    default:
+      Serial.println("Var not found");
+      break;
+  }
+}
+void Luminary::toggle_serial_stream(unsigned long hash) {
+  switch (hash) {
+    case DC_HASH:
+      TOGGLE(this->_serial_stream, 15);
+      break;
+    case REF_HASH:
+      TOGGLE(this->_serial_stream, 14);
+      break;
+    case L_MEAS_HASH:
+      TOGGLE(this->_serial_stream, 13);
+      break;
+    case L_PRED_HASH:
+      TOGGLE(this->_serial_stream, 12);
+      break;
+    case ERR_HASH:
+      TOGGLE(this->_serial_stream, 11);
+      break;
+    case PROP_HASH:
+      TOGGLE(this->_serial_stream, 10);
+      break;
+    case INTEGRAL_HASH:
+      TOGGLE(this->_serial_stream, 9);
+      break;
+    case U_FF_HASH:
+      TOGGLE(this->_serial_stream, 8);
+      break;
+    case U_FB_HASH:
+      TOGGLE(this->_serial_stream, 7);
+      break;
+    case U_HASH:
+      TOGGLE(this->_serial_stream, 6);
+      break;
+    case PWR_HASH:
+      TOGGLE(this->_serial_stream, 5);
+      break;
+    case EXT_ILU_HASH:
+      TOGGLE(this->_serial_stream, 4);
+      break;
+    case FLICKER_HASH:
+      TOGGLE(this->_serial_stream, 3);
+      break;
+    default:
+      Serial.println("Var not found");
+      break;
+  }
+}
+
+/**
+ * @brief Updates the circular buffer with state variables
+ *
+ */
+void Luminary::update_hist() {
+  this->DC.push((this->led.dutty_cicle / 100) * 65535);
+  this->ref.push(this->contr.get_ref() * 1000);
+  this->L_meas.push(this->ldr.lux * 1000);
+  this->L_pred.push(this->sim.get_current_l_prediction() * 1000);
+  this->integral.push(this->contr.get_integral() * 1000);
+}
+
+void Luminary::print_stream() {
+  char buff[300];
+  snprintf_P(buff, 300, "s ");
+  if (READ(this->_serial_stream, 15)) {
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "DC%d %.2f,", this->get_id(), this->led.dutty_cicle);
+  }
+  if (READ(this->_serial_stream, 14)) {
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "Ref%d %.3f,", this->get_id(), this->contr.get_ref());
+  }
+  if (READ(this->_serial_stream, 13)) {
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "L_meas%d %.5f,", this->get_id(), this->ldr.lux);
+  }
+  if (READ(this->_serial_stream, 12)) {
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "L_pred%d %.5f,", this->get_id(), this->sim.get_current_l_prediction());
+  }
+  if (READ(this->_serial_stream, 11)) {
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "err%d %.7f,", this->get_id(), this->contr.get_ref() - this->ldr.lux);
+  }
+  if (READ(this->_serial_stream, 10)) {
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "prop%d %.5f,", this->get_id(), (this->contr.get_ref() - this->ldr.lux) * this->contr.get_kp());
+  }
+  if (READ(this->_serial_stream, 9)) {
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "int%d %.5f,", this->get_id(), this->contr.get_integral());
+  }
+  if (READ(this->_serial_stream, 8)) {
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "u_ff%d %.6f,", this->get_id(), (this->contr.get_ref() - this->sim.get_L0()) / this->sim.get_G());
+  }
+  if (READ(this->_serial_stream, 7)) {
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "u_fb%d %.6f,", this->get_id(), (this->contr.get_ref() - this->ldr.lux) * this->contr.get_kp() + this->contr.get_integral());
+  }
+  if (READ(this->_serial_stream, 6)) {
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "u%d %.7f,", this->get_id(), ((this->contr.get_ref() - this->sim.get_L0()) / this->sim.get_G()) + ((this->contr.get_ref() - this->ldr.lux) * this->contr.get_kp() + this->contr.get_integral()));
+  }
+  if (READ(this->_serial_stream, 5)) {
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "pwr%d %.3f,", this->get_id(), this->get_curr_pwr());
+  }
+  if (READ(this->_serial_stream, 4)) {
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "ex_ilu%d %.5f,", this->get_id(), this->get_ext_ilu());
+  }
+  if (READ(this->_serial_stream, 3)) {
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "flck%d %.4f,", this->get_id(), this->get_curr_flicker());
+  }
+  if (strlen(buff) > 4) {
+    snprintf(buff + strlen(buff), 300 - strlen(buff), "t %d", millis());
+    Serial.println(buff);
+  }
 }
