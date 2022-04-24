@@ -8,9 +8,9 @@
 class LDR {
  public:
   LDR(int pin);
-  double voltage;
+  float voltage;
   int resistance;
-  double lux;
+  float lux;
   int read_adc();
   void read_voltage();
   void read_and_convert();
