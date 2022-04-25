@@ -3,5 +3,5 @@
     "board": "rp2040:rp2040:rpipico",
     "configuration": "flash=2097152_0,freq=125,opt=Small,rtti=Disabled,dbgport=Disabled,dbglvl=None,usbstack=picosdk",
     "output": "../build",
-    "port": "COM7"
+    "port": "COM9"
 }

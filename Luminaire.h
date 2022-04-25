@@ -9,7 +9,7 @@
 #include "Simulator.h"
 
 #define SECUNDARY_TIMER_FREQ 100  // Hz
-
+// #define N_STREAM_VARIABLES 13 - moved to I2C_message_protocol
 #define DC_HASH 5863308
 #define REF_HASH 177687
 #define L_MEAS_HASH 193498321
@@ -61,6 +61,7 @@ class Luminary {
   
   void update_hist();
   void print_stream();
+  void send_i2c_stream();
 
   CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> DC;        // 0 - 65535 (0-100% times 65535/100)
   CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> ref;       // (ref * 1000)

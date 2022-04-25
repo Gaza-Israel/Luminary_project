@@ -422,7 +422,7 @@ void Parser::set_controller_gains(MyCommandParser::Argument *args, char *respons
 
 //_____________________________________________________________________________
 
-void init_globals(Luminary *lum) {
+void pass_lum_to_parser(Luminary *lum) {
   G_L1 = lum;
 }
 /**
@@ -444,5 +444,6 @@ bool main_timer_callback(struct repeating_timer *t) {
   G_L1->calc_metrics(G_L1->L_meas[size_buff - 1], G_L1->L_meas[size_buff - 2], G_L1->L_meas[size_buff - 3]);
   G_L1->update_hist();
   G_L1->print_stream();
+  G_L1->send_i2c_stream();
   return true;
 }

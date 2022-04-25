@@ -9,7 +9,7 @@ typedef CommandParser<22, 3, 3, 15, 64> MyCommandParser;
 class Luminary;
 
 bool main_timer_callback(struct repeating_timer *t);
-void init_globals(Luminary *lum);
+void pass_lum_to_parser(Luminary *lum);
 
 class Parser {
  public:

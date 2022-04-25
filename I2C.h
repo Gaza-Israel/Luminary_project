@@ -14,7 +14,7 @@ typedef struct i2c_message {
   uint8_t pec;
 } i2c_message;
 
-static CircularBuffer<i2c_message, 5> in_buff;
+static CircularBuffer<i2c_message, 30> in_buff;
 
 static uint8_t this_pico_id[8];
 static uint8_t i2c_address;

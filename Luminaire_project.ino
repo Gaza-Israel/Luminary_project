@@ -8,12 +8,11 @@
 #include "Luminaire.h"
 #include "Parser.h"
 #include "Simulator.h"
+
 /*
   TODO
   Switch conversions on LDR to inline functions
  */
-
-
 
 // The AUTO_TEST define activates the base reference curve,
 //  it is used to help the controller tunning process
@@ -36,6 +35,7 @@ Parser myparser;                    // Parser for serial commands
 struct repeating_timer main_timer;  // Main timer structure
 I2C::i2c_message tx_message;
 
+
 void setup() {
   Serial.begin(115200);
 
@@ -43,16 +43,19 @@ void setup() {
   analogWriteFreq(30000);    // 30KHz
   analogWriteRange(4095);    // Max PWM value (correspods to 100%)
 
-  init_globals(&L1);        // Passes the Luminaire object to the parser
+  pass_lum_to_parser(&L1);        // Passes the Luminaire object to the parser
   myparser.setup();         // Setup the commands on the parser
   L1.led.start_sequence();  // Blinks the led to signal its ready for serial connections
-  
+
   I2C::config_I2C(12, 13, 10, 11);
   I2C::print_I2C1_full_address();
   Serial.println(I2C::get_I2C1_address());
   L1.set_id(I2C::get_I2C1_address());
   I2C_message_protocol::broadcast_node(ID);
-
+  I2C_message_protocol::broadcast_node(ID);
+  I2C_message_protocol::broadcast_node(ID);
+  I2C_message_protocol::broadcast_node(ID);
+  I2C_message_protocol::broadcast_node(ID);
 
   Serial.print("Setting Coefficients...\n");
   L1.ldr.set_coefficients(-1.0, 4.8346);  // Sets ldr coefficients
@@ -79,7 +82,7 @@ void setup() {
   add_repeating_timer_us(-1000000 / SIMULATOR_FREQ, main_timer_callback, NULL, &main_timer);
   Serial.println("Ready");
   char buff[50];
-  snprintf(buff,50,"Size of float %d - Size of double %d",sizeof(float),sizeof(double));
+  snprintf(buff, 50, "Size of float %d - Size of double %d", sizeof(float), sizeof(double));
   Serial.println(buff);
 #ifdef AUTO_TEST
   Serial.println("DC,Ref,L_meas,L_pred,err,prop,in,u_ff,u_fb,u,pwr,ex_ilu,flck,t");
@@ -136,7 +139,7 @@ void loop() {
     myparser._parser.processCommand(line, response);
     Serial.println(response);
   }
-  if (I2C::buffer_not_empty()){
-    I2C_message_protocol::parse_message(I2C::pop_message_from_buffer(),&L1);
+  if (I2C::buffer_not_empty()) {
+    I2C_message_protocol::parse_message(I2C::pop_message_from_buffer(), &L1);
   }
 }
