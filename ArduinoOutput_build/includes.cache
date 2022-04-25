@@ -1,0 +1,42 @@
+[
+  {
+    "Sourcefile": null,
+    "Include": "",
+    "Includepath": "C:\\Users\\andre\\AppData\\Local\\Arduino15\\packages\\rp2040\\hardware\\rp2040\\1.13.1\\cores\\rp2040"
+  },
+  {
+    "Sourcefile": null,
+    "Include": "",
+    "Includepath": "C:\\Users\\andre\\AppData\\Local\\Arduino15\\packages\\rp2040\\hardware\\rp2040\\1.13.1\\variants\\rpipico"
+  },
+  {
+    "Sourcefile": "c:\\Users\\andre\\Desktop\\SCDTR\\Codigo\\Projeto1\\ArduinoOutput_build\\sketch\\main.ino.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "c:\\Users\\andre\\Desktop\\SCDTR\\Codigo\\Projeto1\\ArduinoOutput_build\\sketch\\calibration.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "c:\\Users\\andre\\Desktop\\SCDTR\\Codigo\\Projeto1\\ArduinoOutput_build\\sketch\\controller.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "c:\\Users\\andre\\Desktop\\SCDTR\\Codigo\\Projeto1\\ArduinoOutput_build\\sketch\\feedforward.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "c:\\Users\\andre\\Desktop\\SCDTR\\Codigo\\Projeto1\\ArduinoOutput_build\\sketch\\simulator.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "c:\\Users\\andre\\Desktop\\SCDTR\\Codigo\\Projeto1\\ArduinoOutput_build\\sketch\\volt2lux.cpp",
+    "Include": "",
+    "Includepath": null
+  }
+]

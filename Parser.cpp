@@ -84,6 +84,7 @@ void Parser::set_dc(MyCommandParser::Argument *args, char *response) {
   G_L1->led.set_dutty_cicle(dc);
   strlcpy(response, "ack", MyCommandParser::MAX_RESPONSE_SIZE);
 }
+
 void Parser::get_dc(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   if (id != G_L1->get_id()) {
