@@ -1,17 +1,20 @@
 #include "Controller.h"
 #include "I2C_message_protocol.h"
-#include <bits/stdc++.h>
+#include "median_filter.h"
+//#include <bits/stdc++.h>
+
+namespace wake_up{
 
 void calibrate_all(){
 
     int aux_order = -1; //aux variable for calibration sequence position
 
     //gets addresses
-    I2C_message_protocol::nodes_addr addresses;
+    I2C_message_protocol::nodes_addr addresses; //fazer variavel local e adicionar o (endereço local) (memcopy ou loop for)
     //get_addresses(addresses);
 
     //sorts addresses form smaller to larger
-    sort(addresses, N_LUMINARIES);
+    I2C_message_protocol::sort_addresses(); //usar quicksort do median.h
 
     //check the position of this luminaire in the calibration sequence
     //aux_order = I2C_message_protocol::addr_is_saved(/*endereço desta luminária*/)
@@ -28,6 +31,7 @@ void calibrate_all(){
         }
         else
         {
+            //fazer flag para dizer que esta em calibraçao cruzada
             //other_calibration
         }
         
@@ -45,12 +49,14 @@ void self_calibration(){
 
     //send message that its going to calibrate G, others send acknolagment
     //(...)
+    I2C_message_protocol::g_calib_start();
+
 
     //when receives confirmation from others, proceed to calibrate G, others enter in cross calibration mode
     //(...)
 
     Serial.print("Calibrating G...\n");
-    L1.sim.calibrate_G(50, false);
+    L1.sim.calibrate_G(50, false);  //alterar para mandar send_duty cycle dentro da função
 
     //sends message about ending calibration of G so others end cross calibration
     (...)
@@ -111,14 +117,17 @@ void ready_to_calibrate(){
 }
 
 //receives empty array of addresses, populates it and returns the filled array
-void get_addresses(I2C_message_protocol::nodes_addr _addresses){
+void get_addresses(){
 
+    while()//faz broadcast e lê
     //broadcasts addresses
     //(...)
-
+    //outro while para ler varias
     //gets others adderesses to array
     //(...)
     //save_addr(_addr);
 
     return;
+}
+
 }
