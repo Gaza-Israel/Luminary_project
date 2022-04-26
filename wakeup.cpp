@@ -50,29 +50,15 @@ void wake_up::calibrate_all()
         {
             // self calibration
         }
-        else    //this luminaire is cross calibrating
+        else // this luminaire is cross calibrating
         {
             // waits until receive message of other starting G calibration
-            while (this->_waiting_for_crossed_g)
-            {
-                if (I2C::buffer_not_empty())
-                {
-                    I2C_message_protocol::parse_message(I2C::pop_message_from_buffer());
-                }
-            }
+            wake_up::wait_for_message(G_CALIB_START);
+
             wake_up::other_calibration();
+
             // receive calibration end from calibrating luminaire
-            while (1)
-            {
-                if (I2C::buffer_not_empty())
-                {
-                    I2C::i2c_message _msg_calib_end = (I2C::pop_message_from_buffer());
-                    if (_msg_calib_endc.msg_id) == SELF_CALIB_END)
-                        {
-                            break;
-                        }
-                }
-            }
+            wake_up::wait_for_message(SELF_CALIB_END);
         }
     }
 }
@@ -183,18 +169,18 @@ void wake_up::get_addresses()
         return;
 }
 
-void wake_up::wait_for_message(uint8_t _message_id ){
+void wake_up::wait_for_message(uint8_t _message_id)
+{
 
     while (1)
-            {
-                if (I2C::buffer_not_empty())
+    {
+        if (I2C::buffer_not_empty())
+        {
+            I2C::i2c_message _message = (I2C::pop_message_from_buffer());
+            if (_message.msg_id) == _message_id)
                 {
-                    I2C::i2c_message _message = (I2C::pop_message_from_buffer());
-                    if (_message.msg_id) == _message_id)
-                        {
-                            break;
-                        }
+                    break;
                 }
-            }
-
+        }
+    }
 }
