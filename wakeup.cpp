@@ -30,37 +30,31 @@ wake_up::wake_up(LDR *init_ldr, Simulator *sim) {
 void wake_up::calibrate_all() {
   int aux_order = -1;  // aux variable for calibration sequence position
 
-    // sorts addresses form smaller to larger
-    I2C_message_protocol::sort_addresses(); // usar quicksort do median.h
+  // sorts addresses form smaller to larger
+  I2C_message_protocol::sort_addresses();  // usar quicksort do median.h
 
-    // check the position of this luminaire in the calibration sequence
-    aux_order = I2C_message_protocol::addr_is_saved(I2C::get_I2C1_address());
+  // check the position of this luminaire in the calibration sequence
+  aux_order = I2C_message_protocol::addr_is_saved(I2C::get_I2C1_address());
 
   // check the position of this luminaire in the calibration sequence
   // aux_order = I2C_message_protocol::addr_is_saved(/*endereço desta luminária*/)
 
   // each luminaire tells it is ready when they have all the addresses
   // ready_to_calibrate();
-  
 
-    // whole calibration loop
-    for (int i = 0; i < N_LUMINARIES; i++)
+  // whole calibration loop
+  for (int i = 0; i < N_LUMINARIES; i++) {
+    if (i == aux_order) {
+      this->self_calibration();
+    } else  // this luminaire is cross calibrating
     {
-        if (i == aux_order)
-        {
-            wake_up::self calibration();
-        }
-        else // this luminaire is cross calibrating
-        {
-            // waits until receive message of other starting G calibration
-            wake_up::wait_for_message(G_CALIB_START);
+      // waits until receive message of other starting G calibration
+      this->wait_for_message(G_CALIB_START);
 
-            wake_up::other_calibration();
+      this->other_calibration();
 
-            // receive calibration end from calibrating luminaire
-            wake_up::wait_for_message(SELF_CALIB_END);
-
-        }
+      // receive calibration end from calibrating luminaire
+      this->wait_for_message(SELF_CALIB_END);
     }
   }
 }
@@ -84,7 +78,7 @@ void wake_up::self_calibration() {
   Serial.print("Calibrating Theta...\n");
   this->_sim->calibrate_theta(1);
 
-    I2C_message_protocol::self_calib_end();
+  I2C_message_protocol::self_calib_end();
 
   // flushes buffer
   I2C::pop_message_from_buffer();
@@ -92,48 +86,40 @@ void wake_up::self_calibration() {
 
 // when this luminaire is only reading to assess cross gains
 // knows when to enter based on calibration sequence (queu)
-void wake_up::other_calibration()
-{
-    BLA::Matrix<CALIBRATION_POINTS, 1> DC;
-    BLA::Matrix<CALIBRATION_POINTS, 1> L;
-    BLA::Matrix<1, 1> square;
-    BLA::Matrix<1, 1> Gain;
+void wake_up::other_calibration() {
+  BLA::Matrix<CALIBRATION_STEPS, 1> DC;
+  BLA::Matrix<CALIBRATION_STEPS, 1> L;
+  BLA::Matrix<1, 1> square;
+  BLA::Matrix<1, 1> Gain;
+  I2C::i2c_message _msg_dc;
 
-    // fazer ciclo recebe duty cycle e mede no LDR
-    for (int i = 0; i < CALIBRATION_STEPS; i++)
-    {
-
-        while (1)
-        {
-
-            // receive duty cycle from cross calibrating luminaire
-            if (I2C::buffer_not_empty())
-            {
-                I2C::i2c_message _msg_dc = (I2C::pop_message_from_buffer());
-                if (_msg_dc.msg_id) == send_dc_MSG_ID)
-                    {
-                        DC(i, 0) = I2C_message_protocol::bit_cast<float>(_msg_dc.data);
-                        break;
-                    }
-            }
+  // fazer ciclo recebe duty cycle e mede no LDR
+  for (int i = 0; i < CALIBRATION_STEPS; i++) {
+    while (1) {
+      // receive duty cycle from cross calibrating luminaire
+      if (I2C::buffer_not_empty()) {
+        _msg_dc = (I2C::pop_message_from_buffer());
+        if (_msg_dc.msg_id == send_dc_MSG_ID) {
+          DC(i, 0) = bit_cast<float>(_msg_dc.data);
+          break;
         }
-
-        // medir valor do LDR
-        L(i, 0) = 10 * (-(this->sim->_L0) + (this->_ldr->median_measure(5)));
+      }
     }
 
-    // compute gains
-    square = ~DC * DC;
-    bool is_nonsingular = BLA::Invert(square);
-    if (is_nonsingular)
-    {
-        Gain = (square * ~DC) * L;
-        this->_sim->_k[addr_is_save(_msg_dc.node)] = Gain(0) / 10;
-    }
-    else
-    {
-        Serial.print("Matrix is Singular\n");
-    }
+    // medir valor do LDR
+    this->_ldr->median_measure(5);
+    L(i, 0) = 10 * (-(this->_sim->_L0) + this->_ldr->lux);
+  }
+
+  // compute gains
+  square = ~DC * DC;
+  bool is_nonsingular = BLA::Invert(square);
+  if (is_nonsingular) {
+    Gain = (square * ~DC) * L;
+    this->_sim->_K[I2C_message_protocol::addr_is_saved(_msg_dc.node)] = Gain(0) / 10;
+  } else {
+    Serial.print("Matrix is Singular\n");
+  }
 }
 
 // assess when everyone is ready to calibrate
@@ -153,31 +139,14 @@ void wake_up::ready_to_calibrate() {
   return;
 }
 
-// receives empty array of addresses, populates it and returns the filled array
-void wake_up::get_addresses() {
-  while (1)  // faz broadcast e lê
-    // broadcasts addresses
-    //(...)
-    // outro while para ler varias
-    // gets others adderesses to array
-    //(...)
-    // save_addr(_addr);
-
-        return;
-}
-
-void wake_up::wait_for_message(uint8_t _message_id)
-{
-
-    while (1)
-    {
-        if (I2C::buffer_not_empty())
-        {
-            I2C::i2c_message _message = (I2C::pop_message_from_buffer());
-            if (_message.msg_id) == _message_id)
+void wake_up::wait_for_message(uint8_t _message_id) {
+  while (1) {
+    if (I2C::buffer_not_empty()) {
+      I2C::i2c_message _message = (I2C::pop_message_from_buffer());
+      if (_message.msg_id == _message_id)
                 {
-                    break;
-                }
+          break;
         }
     }
+  }
 }

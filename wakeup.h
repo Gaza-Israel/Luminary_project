@@ -11,7 +11,7 @@ class wake_up {
   void self_calibration();
   void other_calibration();
   void ready_to_calibrate();
-  void get_addresses();
+  void wait_for_message(uint8_t _message_id);
 
  private:
   LDR *_ldr;
