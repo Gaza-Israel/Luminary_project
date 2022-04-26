@@ -16,6 +16,7 @@
 #define ERROR_MSG_ID 0
 #define ACK_MSG_ID 1
 #define BROADCAST_MSG_ID 2
+#define G_CALIB_START 3
 /*
 --------------------------------------------------------
                     Set messages
@@ -149,12 +150,17 @@ void save_addr(uint8_t addr) {
 /*
 Command forwarding
 =====================================
-
-/*
---------------------------------------------------------
-                    Set commands
---------------------------------------------------------
 */
+void g_calib_start() {
+  I2C::i2c_message msg;
+  msg.msg_id = G_CALIB_START;
+  I2C::send_message(msg, 0x00);
+}
+ /*
+ --------------------------------------------------------
+                     Set commands
+ --------------------------------------------------------
+ */
 
 void broadcast_node(int id) {
   I2C::i2c_message msg;
