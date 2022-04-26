@@ -7,6 +7,8 @@
 #include "LED.h"
 #include "median_filter.h"
 
+#include "I2C_message_protocol.h"
+
 #define CALIBRATION_POINTS 20
 
 #define STEADY_STATE_DELAY 300
@@ -178,9 +180,11 @@ void Simulator::calibrate_G(int avrg_samples, bool fast_mode) {
       // Set the new LED dutty cycle and sleeps for 50 ms to wait steady state
       this->led->set_dutty_cicle(i * 100 / CALIBRATION_STEPS);
       sleep_ms(STEADY_STATE_DELAY);
-      
+
+      I2C_message_protocol::broadcast_dc(this->led->dutty_cicle);
+
       // Measure the defined number of points
-      for (int j = 0; j < floor(CALIBRATION_POINTS / CALIBRATION_STEPS); j++) {
+      //for (int j = 0; j < floor(CALIBRATION_POINTS / CALIBRATION_STEPS); j++) {
         this->ldr->median_measure(avrg_samples);
 
         // Stores the measured data on the matrix
@@ -190,7 +194,7 @@ void Simulator::calibrate_G(int avrg_samples, bool fast_mode) {
 #ifdef PRINT_STATE
         this->_print_state(false);
 #endif
-      }
+      //}
     }
 
     square = ~DC * DC;
