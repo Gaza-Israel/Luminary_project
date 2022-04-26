@@ -5,6 +5,7 @@
 
 namespace wake_up{
 
+
 void calibrate_all(){
 
     int aux_order = -1; //aux variable for calibration sequence position
@@ -47,19 +48,13 @@ void self_calibration(){
     Serial.print("Setting Coefficients...\n");
     L1.ldr.set_coefficients(-1.0, 4.8346);  // Sets ldr coefficients
 
-    //send message that its going to calibrate G, others send acknolagment
-    //(...)
+    //send message that its going to calibrate G
     I2C_message_protocol::g_calib_start();
-
-
-    //when receives confirmation from others, proceed to calibrate G, others enter in cross calibration mode
-    //(...)
 
     Serial.print("Calibrating G...\n");
     L1.sim.calibrate_G(50, false);  //alterar para mandar send_duty cycle dentro da função
 
-    //sends message about ending calibration of G so others end cross calibration
-    (...)
+    I2C_message_protocol::g_calib_end();
 
     Serial.print("Calibrating Tau...\n");
     L1.sim.calibrate_tau(5);
@@ -67,8 +62,7 @@ void self_calibration(){
     Serial.print("Calibrating Theta...\n");
     L1.sim.calibrate_theta(1);
 
-    //sends message about ending calibration of this luminaire
-    //(...)
+    I2C_message_protocol::self_calib_end();
 
 }
 
@@ -76,8 +70,32 @@ void self_calibration(){
 //knows when to enter based on calibration sequence (queu)
 void other_calibration(){
 
-    //waits for other luminaire to send message that is going to calibrate
-    //(...); sends acknowlagement
+    bool on_calibration = false;
+
+    //waits until receive message of other starting G calibration
+    while(this->_waiting_for_crossed_g){
+        
+        if (I2C::buffer_not_empty()) {
+            I2C_message_protocol::parse_message(I2C::pop_message_from_buffer());
+        }
+    }
+    //fazer ciclo recebe duty cycle e mede no LDR
+    for (int i = 0; i < CALIBRATION_STEPS; i++)
+    {
+        on_calibration = true;
+
+        while(this->){
+        
+        if (I2C::buffer_not_empty()) {
+            I2C_message_protocol::parse_message(I2C::pop_message_from_buffer());
+        }
+    }
+
+    on_calibration = false;
+    }
+    
+
+
 
     //cross calibrates
     //(INCOMPLETE!!!)

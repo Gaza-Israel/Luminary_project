@@ -1,7 +1,8 @@
 #ifndef Wakeup_h
 #define Wakeup_h
 
-namespace wake_up{
+class wake_up{
+
 
 void calibrate_all();
 void self_calibration();
