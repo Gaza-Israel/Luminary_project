@@ -48,7 +48,7 @@ void wake_up::calibrate_all() {
     {
         if (i == aux_order)
         {
-            // self calibration
+            wake_up::self calibration();
         }
         else // this luminaire is cross calibrating
         {
@@ -59,6 +59,7 @@ void wake_up::calibrate_all() {
 
             // receive calibration end from calibrating luminaire
             wake_up::wait_for_message(SELF_CALIB_END);
+
         }
     }
   }
