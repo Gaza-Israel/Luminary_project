@@ -16,10 +16,12 @@ extern Luminary *L;
 
 int addr_is_saved(uint8_t addr);
 void save_addr(uint8_t addr);
+void sort_addresses();
 
 void broadcast_node(int id);
 
 void g_calib_start();
+void g_calib_end();
 
 bool set_dc(uint8_t addr, float value);
 bool set_lux_ref(uint8_t addr, float value, bool occ);
@@ -46,6 +48,7 @@ bool get_acc_visibility_err(uint8_t addr);
 bool get_acc_flicker(uint8_t addr);
 
 bool send_stream(uint8_t addr, uint8_t var, float data);
+bool broadcast_dc(float value);
 
 void send_ack(uint8_t addr,uint32_t ID);
 void send_error(uint8_t addr, uint32_t ERROR_REASON);

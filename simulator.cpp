@@ -178,7 +178,7 @@ void Simulator::calibrate_G(int avrg_samples, bool fast_mode) {
       // Set the new LED dutty cycle and sleeps for 50 ms to wait steady state
       this->led->set_dutty_cicle(i * 100 / CALIBRATION_STEPS);
       sleep_ms(STEADY_STATE_DELAY);
-
+      
       // Measure the defined number of points
       for (int j = 0; j < floor(CALIBRATION_POINTS / CALIBRATION_STEPS); j++) {
         this->ldr->median_measure(avrg_samples);

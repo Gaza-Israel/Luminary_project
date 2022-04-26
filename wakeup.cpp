@@ -17,10 +17,10 @@ void wake_up::calibrate_all() {
   // get_addresses(addresses);
 
   // sorts addresses form smaller to larger
-  // I2C_message_protocol::sort_addresses();  // usar quicksort do median.h
+  I2C_message_protocol::sort_addresses();  // usar quicksort do median.h
 
   // check the position of this luminaire in the calibration sequence
-  // aux_order = I2C_message_protocol::addr_is_saved(/*endereço desta luminária*/)
+  aux_order = I2C_message_protocol::addr_is_saved(I2C::get_I2C1_address());
 
   // each luminaire tells it is ready when they have all the addresses
   // ready_to_calibrate();

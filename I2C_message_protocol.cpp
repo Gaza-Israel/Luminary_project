@@ -1,6 +1,7 @@
 #include "I2C_message_protocol.h"
 
 #include "Luminaire.h"
+#include "median_filter.h"
 /*
 --------------------------------------------------------
                     Error Code
@@ -17,6 +18,7 @@
 #define ACK_MSG_ID 1
 #define BROADCAST_MSG_ID 2
 #define G_CALIB_START 3
+#define G_CALIB_END 4
 /*
 --------------------------------------------------------
                     Set messages
@@ -128,7 +130,6 @@ uint8_t nodes_addr[N_STREAM_VARIABLES * N_LUMINARIES] = {0};
 uint8_t n_addr_saved = 0;
 Luminary* L;
 
-
 /**
  * @brief Checks if an address is already stored on the nodes_addr array.
  * If the address is already there, return the index of the address, else return -1.
@@ -150,25 +151,36 @@ void save_addr(uint8_t addr) {
     I2C_message_protocol::n_addr_saved++;
   }
 }
+
+void sort_addresses() {
+  quickSort_uint8(I2C_message_protocol::nodes_addr, 0, N_LUMINARIES - 1);
+}
 /*
 Command forwarding
 =====================================
 */
-void g_calib_start() {
-  I2C::i2c_message msg;
-  msg.msg_id = G_CALIB_START;
-  I2C::send_message(msg, 0x00);
-}
- /*
- --------------------------------------------------------
-                     Set commands
- --------------------------------------------------------
- */
+
+/*
+--------------------------------------------------------
+                    Set commands
+--------------------------------------------------------
+*/
 
 void broadcast_node(int id) {
   I2C::i2c_message msg;
   msg.msg_id = BROADCAST_MSG_ID;
   msg.data = id;
+  I2C_message_protocol::save_addr(I2C::get_I2C1_address());
+  I2C::send_message(msg, 0x00);
+}
+void g_calib_start() {
+  I2C::i2c_message msg;
+  msg.msg_id = G_CALIB_START;
+  I2C::send_message(msg, 0x00);
+}
+void g_calib_end() {
+  I2C::i2c_message msg;
+  msg.msg_id = G_CALIB_END;
   I2C::send_message(msg, 0x00);
 }
 bool set_dc(uint8_t addr, float value) {
@@ -308,9 +320,16 @@ bool send_stream(uint8_t addr, uint8_t var, float data) {
   msg.data = bit_cast<uint32_t>(data);
   return !I2C::send_message(msg, addr);
 }
+
+bool broadcast_dc(float value) {
+  I2C::i2c_message msg;
+  msg.msg_id = send_dc_MSG_ID;
+  msg.data = bit_cast<uint32_t>(value);
+  return I2C::send_message(msg, 0x00);
+}
 /*
 --------------------------------------------------------
-                  Receive commands
+                 Receive commands
 --------------------------------------------------------
 */
 

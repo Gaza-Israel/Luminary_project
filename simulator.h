@@ -37,6 +37,7 @@ class Simulator {
   int _calculate_tau(float dc, bool going_up);
 
   float _G = 0;
+  float _K[N_LUMINARIES] = {0};
   float _L0 = 0;
   int _tau_up[TAU_POINTS];
   int _tau_down[TAU_POINTS];

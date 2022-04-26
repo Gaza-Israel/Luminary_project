@@ -44,17 +44,16 @@ void setup() {
   analogWriteRange(4095);    // Max PWM value (correspods to 100%)
 
   pass_lum_to_parser(&L1);        // Passes the Luminaire object to the parser
+  I2C_message_protocol::L = &L1;
   myparser.setup();         // Setup the commands on the parser
   L1.led.start_sequence();  // Blinks the led to signal its ready for serial connections
 
   I2C::config_I2C(12, 13, 10, 11);
+
   I2C::print_I2C1_full_address();
   Serial.println(I2C::get_I2C1_address());
+  
   L1.set_id(I2C::get_I2C1_address());
-  I2C_message_protocol::broadcast_node(ID);
-  I2C_message_protocol::broadcast_node(ID);
-  I2C_message_protocol::broadcast_node(ID);
-  I2C_message_protocol::broadcast_node(ID);
   I2C_message_protocol::broadcast_node(ID);
 
   Serial.print("Setting Coefficients...\n");
@@ -62,10 +61,6 @@ void setup() {
 
   Serial.print("Calibrating G...\n");
   L1.sim.calibrate_G(50, false);
-
-  // L1.sim.set_G(0.01164);
-  // Serial.print("Testing G...\n");
-  // L1.sim.test_G();
 
   Serial.print("Calibrating Tau...\n");
   L1.sim.calibrate_tau(5);
