@@ -31,11 +31,11 @@ void wake_up::calibrate_all()
 {
     int aux_order = -1; // aux variable for calibration sequence position
 
-  // sorts addresses form smaller to larger
-  I2C_message_protocol::sort_addresses();  // usar quicksort do median.h
+    // sorts addresses form smaller to larger
+    I2C_message_protocol::sort_addresses(); // usar quicksort do median.h
 
-  // check the position of this luminaire in the calibration sequence
-  aux_order = I2C_message_protocol::addr_is_saved(I2C::get_I2C1_address());
+    // check the position of this luminaire in the calibration sequence
+    aux_order = I2C_message_protocol::addr_is_saved(I2C::get_I2C1_address());
 
     // check the position of this luminaire in the calibration sequence
     // aux_order = I2C_message_protocol::addr_is_saved(/*endereço desta luminária*/)
@@ -50,10 +50,29 @@ void wake_up::calibrate_all()
         {
             // self calibration
         }
-        else
+        else    //this luminaire is cross calibrating
         {
-            // fazer flag para dizer que esta em calibraçao cruzada
-            // other_calibration
+            // waits until receive message of other starting G calibration
+            while (this->_waiting_for_crossed_g)
+            {
+                if (I2C::buffer_not_empty())
+                {
+                    I2C_message_protocol::parse_message(I2C::pop_message_from_buffer());
+                }
+            }
+            wake_up::other_calibration();
+            // receive calibration end from calibrating luminaire
+            while (1)
+            {
+                if (I2C::buffer_not_empty())
+                {
+                    I2C::i2c_message _msg_calib_end = (I2C::pop_message_from_buffer());
+                    if (_msg_calib_endc.msg_id) == SELF_CALIB_END)
+                        {
+                            break;
+                        }
+                }
+            }
         }
     }
 }
@@ -78,7 +97,7 @@ void wake_up::self_calibration()
     Serial.print("Calibrating Theta...\n");
     this->_sim->calibrate_theta(1);
 
-    // I2C_message_protocol::self_calib_end();
+    I2C_message_protocol::self_calib_end();
 
     // flushes buffer
     I2C::pop_message_from_buffer();
@@ -88,18 +107,6 @@ void wake_up::self_calibration()
 // knows when to enter based on calibration sequence (queu)
 void wake_up::other_calibration()
 {
-
-    // waits for other luminaire to send message that is going to calibrate
-    //(...); sends acknowlagement
-
-    // waits until receive message of other starting G calibration
-    while (this->_waiting_for_crossed_g)
-    {
-        if (I2C::buffer_not_empty())
-        {
-            I2C_message_protocol::parse_message(I2C::pop_message_from_buffer());
-        }
-    }
     BLA::Matrix<CALIBRATION_POINTS, 1> DC;
     BLA::Matrix<CALIBRATION_POINTS, 1> L;
     BLA::Matrix<1, 1> square;
@@ -125,7 +132,7 @@ void wake_up::other_calibration()
         }
 
         // medir valor do LDR
-        L(i, 0) = 10 * (-L0 + (this->_ldr->median_measure(5)));
+        L(i, 0) = 10 * (-(this->sim->_L0) + (this->_ldr->median_measure(5)));
     }
 
     // compute gains
@@ -134,16 +141,12 @@ void wake_up::other_calibration()
     if (is_nonsingular)
     {
         Gain = (square * ~DC) * L;
-        this->_G = Gain(0) / 10;
+        this->_sim->_k[addr_is_save(_msg_dc.node)] = Gain(0) / 10;
     }
     else
     {
         Serial.print("Matrix is Singular\n");
     }
-
-    // waits for message about end of G calibration of the other luminaire
-
-    // broadcasts that this luminiare is ready for next step
 }
 
 // assess when everyone is ready to calibrate
@@ -178,4 +181,20 @@ void wake_up::get_addresses()
         // save_addr(_addr);
 
         return;
+}
+
+void wake_up::wait_for_message(uint8_t _message_id ){
+
+    while (1)
+            {
+                if (I2C::buffer_not_empty())
+                {
+                    I2C::i2c_message _message = (I2C::pop_message_from_buffer());
+                    if (_message.msg_id) == _message_id)
+                        {
+                            break;
+                        }
+                }
+            }
+
 }
