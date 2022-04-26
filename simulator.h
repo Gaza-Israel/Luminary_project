@@ -6,6 +6,7 @@
 #define TAU_POINTS 5
 #define SIMULATOR_FREQ 100  // Hz
 #define V_HIST_SIZE 100
+#define CALIBRATION_STEPS 20
 
 class LED;
 class LDR;

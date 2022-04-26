@@ -328,7 +328,7 @@ void send_error(uint8_t addr, uint32_t ERROR_REASON) {
   I2C::send_message(msg, addr);
 }
 
-void parse_message(I2C::i2c_message msg, Luminary* L) {
+void parse_message(I2C::i2c_message msg) {
   I2C::i2c_message repply_msg;
   switch (msg.msg_id) {
     case BROADCAST_MSG_ID: {
@@ -343,15 +343,15 @@ void parse_message(I2C::i2c_message msg, Luminary* L) {
     }
     default: {
       if (GET(msg.msg_id)) {
-        parse_get(msg, L);
+        parse_get(msg);
         break;
       }
       if (SET(msg.msg_id)) {
-        parse_set(msg, L);
+        parse_set(msg);
         break;
       }
       if (SEND(msg.msg_id)) {
-        parse_send(msg, L);
+        parse_send(msg);
         break;
       }
       send_error(msg.node, COMMAND_INVALID_ERROR);
@@ -359,7 +359,7 @@ void parse_message(I2C::i2c_message msg, Luminary* L) {
   }
 }
 
-void parse_set(I2C::i2c_message msg, Luminary* L) {
+void parse_set(I2C::i2c_message msg) {
   I2C::i2c_message repply_msg;
   switch (msg.msg_id) {
     case set_dc_MSG_ID: {
@@ -411,7 +411,7 @@ void parse_set(I2C::i2c_message msg, Luminary* L) {
     }
   }
 }
-void parse_get(I2C::i2c_message msg, Luminary* L) {
+void parse_get(I2C::i2c_message msg) {
   I2C::i2c_message repply_msg;
   switch (msg.msg_id) {
     case get_dc_MSG_ID: {
@@ -475,7 +475,7 @@ void parse_get(I2C::i2c_message msg, Luminary* L) {
       break;
     }
     case get_hist_MSG_ID: {
-      parse_get_hist(msg, L);
+      parse_get_hist(msg);
       break;
     }
     case get_acc_enrgy_comsumption_MSG_ID: {
@@ -498,7 +498,7 @@ void parse_get(I2C::i2c_message msg, Luminary* L) {
     }
   }
 }
-void parse_get_hist(I2C::i2c_message msg, Luminary* L) {
+void parse_get_hist(I2C::i2c_message msg) {
   I2C::i2c_message repply_msg;
   char buff[20];
   switch (msg.data) {
@@ -712,7 +712,7 @@ void parse_get_hist(I2C::i2c_message msg, Luminary* L) {
     }
   }
 }
-void parse_send(I2C::i2c_message msg, Luminary* L) {
+void parse_send(I2C::i2c_message msg) {
   switch (msg.msg_id) {
     case send_dc_MSG_ID: {
       char buff[20];
@@ -794,18 +794,18 @@ void parse_send(I2C::i2c_message msg, Luminary* L) {
     }
     default: {
       if (TRANSMISSION(msg.msg_id)) {
-        parse_send_transmission(msg, L);
+        parse_send_transmission(msg);
         break;
       }
       if (STREAM(msg.msg_id)) {
-        parse_send_stream(msg, L);
+        parse_send_stream(msg);
         break;
       }
       send_error(msg.node, COMMAND_INVALID_ERROR);
     }
   }
 }
-void parse_send_transmission(I2C::i2c_message msg, Luminary* L) {
+void parse_send_transmission(I2C::i2c_message msg) {
   switch (msg.msg_id) {
     case start_DC_HIST_TRANSMISSION_MSG_ID: {
       char buff[20];
@@ -899,7 +899,7 @@ void parse_send_transmission(I2C::i2c_message msg, Luminary* L) {
     }
   }
 }
-void parse_send_stream(I2C::i2c_message msg, Luminary* L) {
+void parse_send_stream(I2C::i2c_message msg) {
   switch (msg.msg_id) {
     case send_stream_DC: {
       uint8_t idx = addr_is_saved(msg.node);

@@ -140,6 +140,6 @@ void loop() {
     Serial.println(response);
   }
   if (I2C::buffer_not_empty()) {
-    I2C_message_protocol::parse_message(I2C::pop_message_from_buffer(), &L1);
+    I2C_message_protocol::parse_message(I2C::pop_message_from_buffer());
   }
 }

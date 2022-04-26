@@ -49,13 +49,13 @@ bool send_stream(uint8_t addr, uint8_t var, float data);
 
 void send_ack(uint8_t addr,uint32_t ID);
 void send_error(uint8_t addr, uint32_t ERROR_REASON);
-void parse_message(I2C::i2c_message msg, Luminary* L);
-void parse_set(I2C::i2c_message msg, Luminary* L);
-void parse_get(I2C::i2c_message msg, Luminary* L);
-void parse_get_hist(I2C::i2c_message msg, Luminary* L);
-void parse_send(I2C::i2c_message msg, Luminary* L);
-void parse_send_transmission(I2C::i2c_message msg, Luminary* L);
-void parse_send_stream(I2C::i2c_message msg, Luminary* L);
+void parse_message(I2C::i2c_message msg);
+void parse_set(I2C::i2c_message msg);
+void parse_get(I2C::i2c_message msg);
+void parse_get_hist(I2C::i2c_message msg);
+void parse_send(I2C::i2c_message msg);
+void parse_send_transmission(I2C::i2c_message msg);
+void parse_send_stream(I2C::i2c_message msg);
 
 }  // namespace I2C_message_protocol
 

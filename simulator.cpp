@@ -8,7 +8,7 @@
 #include "median_filter.h"
 
 #define CALIBRATION_POINTS 20
-#define CALIBRATION_STEPS 20
+
 #define STEADY_STATE_DELAY 300
 #define ADC_FREQ 10000
 // #define PRINT_STATE
