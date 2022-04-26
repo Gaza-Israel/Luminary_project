@@ -2,6 +2,7 @@
 #ifndef Simulator_h
 #define Simulator_h
 #include <Arduino.h>
+#include "I2C_message_protocol.h"
 
 #define TAU_POINTS 5
 #define SIMULATOR_FREQ 100  // Hz
@@ -31,6 +32,7 @@ class Simulator {
   void calibrate_theta(int repeat);
   void test_G();
   float DC2Lux(float dc);
+  float _L0 = 0;
 
  private:
   void _print_state(bool verbose);
@@ -38,7 +40,6 @@ class Simulator {
 
   float _G = 0;
   float _K[N_LUMINARIES] = {0};
-  float _L0 = 0;
   int _tau_up[TAU_POINTS];
   int _tau_down[TAU_POINTS];
   float _theta = 0;
