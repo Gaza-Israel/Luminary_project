@@ -1,5 +1,7 @@
 #include "wakeup.h"
 
+#include <BasicLinearAlgebra.h>
+
 #include "I2C_message_protocol.h"
 #include "LDR.h"
 #include "simulator.h"
@@ -11,25 +13,22 @@ std::enable_if_t<
         std::is_trivially_copyable_v<To>,
     To>
 // constexpr support needs compiler magic
-bit_cast(const From &src) noexcept
-{
-    static_assert(std::is_trivially_constructible_v<To>,
-                  "This implementation additionally requires destination type to be trivially constructible");
+bit_cast(const From &src) noexcept {
+  static_assert(std::is_trivially_constructible_v<To>,
+                "This implementation additionally requires destination type to be trivially constructible");
 
-    To dst;
-    memcpy(&dst, &src, sizeof(To));
-    return dst;
+  To dst;
+  memcpy(&dst, &src, sizeof(To));
+  return dst;
 }
 
-wake_up::wake_up(LDR *init_ldr, Simulator *sim)
-{
-    this->_ldr = init_ldr;
-    this->_sim = sim;
+wake_up::wake_up(LDR *init_ldr, Simulator *sim) {
+  this->_ldr = init_ldr;
+  this->_sim = sim;
 }
 
-void wake_up::calibrate_all()
-{
-    int aux_order = -1; // aux variable for calibration sequence position
+void wake_up::calibrate_all() {
+  int aux_order = -1;  // aux variable for calibration sequence position
 
     // sorts addresses form smaller to larger
     I2C_message_protocol::sort_addresses(); // usar quicksort do median.h
@@ -37,11 +36,12 @@ void wake_up::calibrate_all()
     // check the position of this luminaire in the calibration sequence
     aux_order = I2C_message_protocol::addr_is_saved(I2C::get_I2C1_address());
 
-    // check the position of this luminaire in the calibration sequence
-    // aux_order = I2C_message_protocol::addr_is_saved(/*endereço desta luminária*/)
+  // check the position of this luminaire in the calibration sequence
+  // aux_order = I2C_message_protocol::addr_is_saved(/*endereço desta luminária*/)
 
-    // each luminaire tells it is ready when they have all the addresses
-    // ready_to_calibrate();
+  // each luminaire tells it is ready when they have all the addresses
+  // ready_to_calibrate();
+  
 
     // whole calibration loop
     for (int i = 0; i < N_LUMINARIES; i++)
@@ -61,32 +61,32 @@ void wake_up::calibrate_all()
             wake_up::wait_for_message(SELF_CALIB_END);
         }
     }
+  }
 }
 
 // when this luminaire calibrates
-void wake_up::self_calibration()
-{
-    Serial.print("Setting Coefficients...\n");
-    this->_ldr->set_coefficients(-1.0, 4.8346); // Sets ldr coefficients
+void wake_up::self_calibration() {
+  Serial.print("Setting Coefficients...\n");
+  this->_ldr->set_coefficients(-1.0, 4.8346);  // Sets ldr coefficients
 
-    // send message that its going to calibrate G
-    I2C_message_protocol::g_calib_start();
+  // send message that its going to calibrate G
+  I2C_message_protocol::g_calib_start();
 
-    Serial.print("Calibrating G...\n");
-    this->_sim->calibrate_G(50, false); // alterar para mandar send_duty cycle dentro da função
+  Serial.print("Calibrating G...\n");
+  this->_sim->calibrate_G(50, false);  // alterar para mandar send_duty cycle dentro da função
 
-    // I2C_message_protocol::g_calib_end();
+  // I2C_message_protocol::g_calib_end();
 
-    Serial.print("Calibrating Tau...\n");
-    this->_sim->calibrate_tau(5);
+  Serial.print("Calibrating Tau...\n");
+  this->_sim->calibrate_tau(5);
 
-    Serial.print("Calibrating Theta...\n");
-    this->_sim->calibrate_theta(1);
+  Serial.print("Calibrating Theta...\n");
+  this->_sim->calibrate_theta(1);
 
     I2C_message_protocol::self_calib_end();
 
-    // flushes buffer
-    I2C::pop_message_from_buffer();
+  // flushes buffer
+  I2C::pop_message_from_buffer();
 }
 
 // when this luminaire is only reading to assess cross gains
@@ -136,35 +136,31 @@ void wake_up::other_calibration()
 }
 
 // assess when everyone is ready to calibrate
-void wake_up::ready_to_calibrate()
-{
-    int all_ready = 0;
+void wake_up::ready_to_calibrate() {
+  int all_ready = 0;
 
-    // send I'm ready message
-    //(...)
+  // send I'm ready message
+  //(...)
 
-    // waits for the others being ready
-    while (all_ready < 2)
-    {
-        if (1 /* get ready from others */)
-        {
-            all_ready++;
-        }
+  // waits for the others being ready
+  while (all_ready < 2) {
+    if (1 /* get ready from others */) {
+      all_ready++;
     }
+  }
 
-    return;
+  return;
 }
 
 // receives empty array of addresses, populates it and returns the filled array
-void wake_up::get_addresses()
-{
-    while (1) // faz broadcast e lê
-        // broadcasts addresses
-        //(...)
-        // outro while para ler varias
-        // gets others adderesses to array
-        //(...)
-        // save_addr(_addr);
+void wake_up::get_addresses() {
+  while (1)  // faz broadcast e lê
+    // broadcasts addresses
+    //(...)
+    // outro while para ler varias
+    // gets others adderesses to array
+    //(...)
+    // save_addr(_addr);
 
         return;
 }
