@@ -41,7 +41,7 @@ Luminary::Luminary(int pin_led, int pin_ldr, int id)
       ldr(pin_ldr),
       sim(&this->led, &this->ldr),
       contr(&this->led, &this->ldr, &this->sim),
-      wk() {
+      wk(&ldr,&sim) {
   _id = id;
 }
 /**

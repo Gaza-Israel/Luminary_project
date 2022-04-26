@@ -12,11 +12,14 @@ extern float buff_recv_i2c_stream[N_STREAM_VARIABLES * N_LUMINARIES];
 extern bool recv_new_i2c_stream[N_STREAM_VARIABLES * N_LUMINARIES];
 extern uint8_t nodes_addr[N_STREAM_VARIABLES * N_LUMINARIES];
 extern uint8_t n_addr_saved;
+extern Luminary *L;
 
 int addr_is_saved(uint8_t addr);
 void save_addr(uint8_t addr);
 
 void broadcast_node(int id);
+
+void g_calib_start();
 
 bool set_dc(uint8_t addr, float value);
 bool set_lux_ref(uint8_t addr, float value, bool occ);

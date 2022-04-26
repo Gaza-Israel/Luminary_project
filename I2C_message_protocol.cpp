@@ -126,6 +126,9 @@ float buff_recv_i2c_stream[N_STREAM_VARIABLES * N_LUMINARIES] = {0};
 bool recv_new_i2c_stream[N_STREAM_VARIABLES * N_LUMINARIES] = {0};
 uint8_t nodes_addr[N_STREAM_VARIABLES * N_LUMINARIES] = {0};
 uint8_t n_addr_saved = 0;
+Luminary* L;
+
+
 /**
  * @brief Checks if an address is already stored on the nodes_addr array.
  * If the address is already there, return the index of the address, else return -1.

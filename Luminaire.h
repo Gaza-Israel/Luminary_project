@@ -7,6 +7,7 @@
 #include "LDR.h"
 #include "LED.h"
 #include "Simulator.h"
+#include "wakeup.h"
 
 #define SECUNDARY_TIMER_FREQ 100  // Hz
 // #define N_STREAM_VARIABLES 13 - moved to I2C_message_protocol
@@ -43,6 +44,7 @@ class Luminary {
   LDR ldr;
   Simulator sim;
   Controller contr;
+  wake_up wk;
   void print_state(bool verbose);
   float get_ext_ilu();  //
   float get_curr_pwr();
