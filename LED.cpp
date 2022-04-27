@@ -36,5 +36,6 @@ void LED::start_sequence(){
   }
    this->set_dutty_cicle(100);
    sleep_ms(200);
+   this->set_dutty_cicle(0);
    Serial.println("Board Started");
 }

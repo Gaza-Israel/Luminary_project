@@ -3,22 +3,19 @@
 #include <BasicLinearAlgebra.h>
 #include <Streaming.h>
 
+#include "I2C_message_protocol.h"
 #include "LDR.h"
 #include "LED.h"
 #include "median_filter.h"
 
-#include "I2C_message_protocol.h"
 
-#define CALIBRATION_POINTS 20
-
-#define STEADY_STATE_DELAY 300
 #define ADC_FREQ 10000
 // #define PRINT_STATE
 #define DEBUG
 
 /**
  * @brief Construct a new Simulator:: Simulator object
- * 
+ *
  * @param init_led LED pointer
  * @param init_ldr LDR pointer
  */
@@ -28,7 +25,7 @@ Simulator::Simulator(LED *init_led, LDR *init_ldr) {
 }
 /**
  * @brief Sets the Plant gain (G)
- * 
+ *
  * @param G_gain Plant gain
  */
 void Simulator::set_G(float G_gain) {
@@ -36,7 +33,7 @@ void Simulator::set_G(float G_gain) {
 }
 /**
  * @brief Gets the Plant gain
- * 
+ *
  * @return float - Plant gain
  */
 float Simulator::get_G() {
@@ -44,7 +41,7 @@ float Simulator::get_G() {
 }
 /**
  * @brief Gets the ambient base illuminance
- * 
+ *
  * @return float - L0
  */
 float Simulator::get_L0() {
@@ -52,16 +49,16 @@ float Simulator::get_L0() {
 }
 /**
  * @brief Converts the duty cycle to expected Lux value
- * 
+ *
  * @param dc duty cycle
  * @return float - Expected Lux value
  */
-float Simulator::DC2Lux(float dc){
+float Simulator::DC2Lux(float dc) {
   return this->get_G() * dc + this->_L0;
 }
 /**
  * @brief Calculate next simulater step
- * 
+ *
  * @param last_v Last predicted LDR voltage
  * @param u Current LED actuation
  * @param dt Time step
@@ -78,7 +75,7 @@ float Simulator::simulate_next_step(float last_v, float u, unsigned long dt) {
 }
 /**
  * @brief Callback to perform the simulation, should be called every cycle
- * 
+ *
  * @param DC Current duty cycle of the LED
  */
 void Simulator::sim_callback(float DC) {
@@ -89,9 +86,9 @@ void Simulator::sim_callback(float DC) {
   }
 }
 /**
- * @brief Gets the prediction in volts for the current time step from the circular 
+ * @brief Gets the prediction in volts for the current time step from the circular
  * buffer accounting for the Theta delay
- * 
+ *
  * @return float - Current prediction
  */
 float Simulator::get_current_v_prediction() {
@@ -117,7 +114,7 @@ float Simulator::get_current_l_prediction() {
 }
 /**
  * @brief Calculates the Tau value for the current state
- * 
+ *
  * @param dc Duty cycle
  * @param going_up Bool that indicates if the voltage is going up or down
  * @return int - Tau value
@@ -139,27 +136,19 @@ int Simulator::_calculate_tau(float dc, bool going_up) {
 }
 /**
  * @brief Calibrates the plant gain (G)
- * 
+ *
  * @param avrg_samples Number of samples to filter with median
- * @param fast_mode If fast mode perform simple calibration. 
+ * @param fast_mode If fast mode perform simple calibration.
  */
 void Simulator::calibrate_G(int avrg_samples, bool fast_mode) {
 #ifdef DEBUG
   Serial.println("Starting Calibration...");
 #endif
-  double L0;
-
-  // Calculating minimum LUX in this ambient (L0)
-  this->led->set_dutty_cicle(0);
-  sleep_ms(STEADY_STATE_DELAY);
-
-  this->ldr->average_measure(avrg_samples);
-
-  L0 = this->ldr->lux;
-  this->_L0 = L0;
+  double L0 = this->_L0;
 
 #ifdef DEBUG
-  Serial << "Minimum Lux (*10) = " << _FLOAT(L0 * 10, 5) << endl;
+  Serial
+      << "Minimum Lux (*10) = " << _FLOAT(L0 * 10, 5) << endl;
 #endif
   if (fast_mode) {
     // Calculating maximum LUX in this ambient
@@ -169,8 +158,8 @@ void Simulator::calibrate_G(int avrg_samples, bool fast_mode) {
     this->ldr->median_measure(avrg_samples);
     this->_G = (this->ldr->lux - L0) / 100;
   } else {
-    BLA::Matrix<CALIBRATION_POINTS, 1> DC;
-    BLA::Matrix<CALIBRATION_POINTS, 1> L;
+    BLA::Matrix<CALIBRATION_STEPS, 1> DC;
+    BLA::Matrix<CALIBRATION_STEPS, 1> L;
     BLA::Matrix<1, 1> square;
     BLA::Matrix<1, 1> Gain;
     int idx = 0;
@@ -184,15 +173,15 @@ void Simulator::calibrate_G(int avrg_samples, bool fast_mode) {
       I2C_message_protocol::broadcast_dc(this->led->dutty_cicle);
 
       // Measure the defined number of points
-      //for (int j = 0; j < floor(CALIBRATION_POINTS / CALIBRATION_STEPS); j++) {
-        this->ldr->median_measure(avrg_samples);
+      // for (int j = 0; j < floor(CALIBRATION_POINTS / CALIBRATION_STEPS); j++) {
+      this->ldr->median_measure(avrg_samples);
 
-        // Stores the measured data on the matrix
-        DC(idx, 0) = this->led->dutty_cicle;
-        L(idx, 0) = 10 * (-L0 + this->ldr->lux);
-        idx++;
+      // Stores the measured data on the matrix
+      DC(idx, 0) = this->led->dutty_cicle;
+      L(idx, 0) = 10 * (-L0 + this->ldr->lux);
+      idx++;
 #ifdef PRINT_STATE
-        this->_print_state(false);
+      this->_print_state(false);
 #endif
       //}
     }
@@ -207,6 +196,7 @@ void Simulator::calibrate_G(int avrg_samples, bool fast_mode) {
     if (is_nonsingular) {
       Gain = (square * ~DC) * L;
       this->_G = Gain(0) / 10;
+      this->_K[I2C_message_protocol::addr_is_saved(I2C::get_I2C1_address())] = Gain(0) / 10;
 #ifdef DEBUG
       Serial << "inverted square: " << _FLOAT(square(0, 0), 8) << '\n';
       Serial.print("Calibration ended, Gain = ");
@@ -333,7 +323,7 @@ void Simulator::calibrate_tau(int avrg_samples) {
 }
 /**
  * @brief Calibrates the theta delay
- * 
+ *
  * @param repeat Number of repetitions of the calibration to average the result
  */
 void Simulator::calibrate_theta(int repeat) {
@@ -410,7 +400,7 @@ void Simulator::calibrate_theta(int repeat) {
 }
 /**
  * @brief Test the current plant gain to compare the predicted with the measured Lux
- * 
+ *
  */
 void Simulator::test_G() {
 #ifdef DEBUG

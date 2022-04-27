@@ -4,7 +4,7 @@
 
 class Luminary;
 
-#define N_LUMINARIES 3
+#define N_LUMINARIES 2
 #define N_STREAM_VARIABLES 13
 
 /*
@@ -21,9 +21,10 @@ class Luminary;
 */
 #define ERROR_MSG_ID 0
 #define ACK_MSG_ID 1
-#define BROADCAST_MSG_ID 2
-#define G_CALIB_START 3
-#define SELF_CALIB_END 4
+#define IM_READY 2
+#define BROADCAST_MSG_ID 3
+#define G_CALIB_START 4
+#define SELF_CALIB_END 5
 /*
 --------------------------------------------------------
                     Set messages

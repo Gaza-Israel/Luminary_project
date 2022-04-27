@@ -1,10 +1,10 @@
 #include <Streaming.h>
 
-#include "Controller.h"
 #include "I2C.h"
 #include "I2C_message_protocol.h"
 #include "LDR.h"
 #include "LED.h"
+#include "Controller.h"
 #include "Luminaire.h"
 #include "Parser.h"
 #include "Simulator.h"
@@ -35,7 +35,6 @@ Parser myparser;                    // Parser for serial commands
 struct repeating_timer main_timer;  // Main timer structure
 I2C::i2c_message tx_message;
 
-
 void setup() {
   Serial.begin(115200);
 
@@ -43,7 +42,7 @@ void setup() {
   analogWriteFreq(30000);    // 30KHz
   analogWriteRange(4095);    // Max PWM value (correspods to 100%)
 
-  pass_lum_to_parser(&L1);        // Passes the Luminaire object to the parser
+  pass_lum_to_parser(&L1);  // Passes the Luminaire object to the parser
   I2C_message_protocol::L = &L1;
   myparser.setup();         // Setup the commands on the parser
   L1.led.start_sequence();  // Blinks the led to signal its ready for serial connections
@@ -52,21 +51,10 @@ void setup() {
 
   I2C::print_I2C1_full_address();
   Serial.println(I2C::get_I2C1_address());
-  
+
   L1.set_id(I2C::get_I2C1_address());
-  I2C_message_protocol::broadcast_node(ID);
 
-  Serial.print("Setting Coefficients...\n");
-  L1.ldr.set_coefficients(-1.0, 4.8346);  // Sets ldr coefficients
-
-  Serial.print("Calibrating G...\n");
-  L1.sim.calibrate_G(50, false);
-
-  Serial.print("Calibrating Tau...\n");
-  L1.sim.calibrate_tau(5);
-
-  Serial.print("Calibrating Theta...\n");
-  L1.sim.calibrate_theta(1);
+  L1.wk.calibrate_all();
 
   L1.contr.set_gains(50, 500);
   L1.contr.set_fb(true);
@@ -76,9 +64,6 @@ void setup() {
 
   add_repeating_timer_us(-1000000 / SIMULATOR_FREQ, main_timer_callback, NULL, &main_timer);
   Serial.println("Ready");
-  char buff[50];
-  snprintf(buff, 50, "Size of float %d - Size of double %d", sizeof(float), sizeof(double));
-  Serial.println(buff);
 #ifdef AUTO_TEST
   Serial.println("DC,Ref,L_meas,L_pred,err,prop,in,u_ff,u_fb,u,pwr,ex_ilu,flck,t");
 #endif

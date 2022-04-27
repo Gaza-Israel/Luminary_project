@@ -8,6 +8,7 @@
 #define SIMULATOR_FREQ 100  // Hz
 #define V_HIST_SIZE 100
 #define CALIBRATION_STEPS 20
+#define STEADY_STATE_DELAY 300
 
 class LED;
 class LDR;

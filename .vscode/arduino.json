@@ -1,5 +1,5 @@
 {
     "board": "rp2040:rp2040:rpipico",
     "port": "COM7",
-    "sketch": "Luminaire_project.ino"
+    "sketch": "Luminary_project.ino"
 }
