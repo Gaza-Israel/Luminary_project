@@ -1,11 +1,8 @@
 #ifndef I2C_message_protocol_h
 #define I2C_message_protocol_h
 #include "I2C.h"
-
+#include "System_config.h"
 class Luminary;
-
-#define N_LUMINARIES 2
-#define N_STREAM_VARIABLES 13
 
 /*
 --------------------------------------------------------
@@ -25,6 +22,7 @@ class Luminary;
 #define BROADCAST_MSG_ID 3
 #define G_CALIB_START 4
 #define SELF_CALIB_END 5
+#define BROADCAST_CONSENSUS_DC 6
 /*
 --------------------------------------------------------
                     Set messages
@@ -156,6 +154,7 @@ bool get_acc_flicker(uint8_t addr);
 
 bool send_stream(uint8_t addr, uint8_t var, float data);
 bool broadcast_dc(float value);
+void broadcast_local_consensus_dc(float *value);
 
 void send_ack(uint8_t addr,uint32_t ID);
 void send_error(uint8_t addr, uint32_t ERROR_REASON);

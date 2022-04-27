@@ -2,6 +2,7 @@
 
 #include "Luminaire.h"
 #include "median_filter.h"
+#include "minimizer.h"
 
 template <class To, class From>
 std::enable_if_t<
@@ -223,6 +224,15 @@ bool broadcast_dc(float value) {
   msg.data = bit_cast<uint32_t>(value);
   return I2C::send_message(msg, 0x00);
 }
+
+void broadcast_local_consensus_dc(float* value) {
+  I2C::i2c_message msg;
+  msg.msg_id = BROADCAST_CONSENSUS_DC;
+  for (int i = 0; i < N_LUMINARIES; i++) {
+    msg.data = (uint32_t(value[i] * 10000000) & 0x00FFFFFF) | ((uint8_t(i) << 24) &0xFF000000 );
+    I2C::send_message(msg, 0x00);
+  }
+}
 /*
 --------------------------------------------------------
                  Receive commands
@@ -255,6 +265,14 @@ void parse_message(I2C::i2c_message msg) {
       snprintf(buff, 30, "Ack by %d of command %lu", msg.node, msg.data);
       Serial.println(buff);
       break;
+    }
+    case BROADCAST_CONSENSUS_DC: {
+      int idx = (msg.data & 0xFF000000) >> 24;
+      float dc = float(msg.data & 0x00FFFFFF) / 10000000;
+      if (!Minimizer::d_received[addr_is_saved(msg.node)][idx]) {
+        Minimizer::d_[idx] += dc / N_LUMINARIES;
+        Minimizer::d_received[addr_is_saved(msg.node)][idx] = true;
+      }
     }
     default: {
       if (GET_MESSAGES(msg.msg_id)) {
