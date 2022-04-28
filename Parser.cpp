@@ -5,6 +5,7 @@
 #include "I2C_message_protocol.h"
 #include "Luminaire.h"
 #include "Streaming.h"
+#include "minimizer.h"
 
 Luminary *G_L1;
 
@@ -76,8 +77,8 @@ const unsigned long hash(const char *str) {
 void Parser::set_dc(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   float dc = args[1].asDouble;
-  if (id!=G_L1->get_id()){
-    bool msg_sent = I2C_message_protocol::set_dc(id,dc);
+  if (id != G_L1->get_id()) {
+    bool msg_sent = I2C_message_protocol::set_dc(id, dc);
     strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
     return;
   }
@@ -128,7 +129,7 @@ void Parser::set_occ_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   bool occ = args[1].asInt64;
   if (id != G_L1->get_id()) {
-    bool msg_sent = I2C_message_protocol::set_occ_status(id,occ);
+    bool msg_sent = I2C_message_protocol::set_occ_status(id, occ);
     strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
     return;
   }
@@ -148,7 +149,7 @@ void Parser::set_anti_windup_status(MyCommandParser::Argument *args, char *respo
   int id = args[0].asInt64;
   bool anti_windup_on = args[1].asInt64;
   if (id != G_L1->get_id()) {
-    bool msg_sent = I2C_message_protocol::set_anti_windup_status(id,anti_windup_on);
+    bool msg_sent = I2C_message_protocol::set_anti_windup_status(id, anti_windup_on);
     strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
     return;
   }
@@ -168,7 +169,7 @@ void Parser::set_ff_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   bool ff_on = args[1].asInt64;
   if (id != G_L1->get_id()) {
-    bool msg_sent = I2C_message_protocol::set_anti_windup_status(id,ff_on);
+    bool msg_sent = I2C_message_protocol::set_anti_windup_status(id, ff_on);
     strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
     return;
   }
@@ -188,7 +189,7 @@ void Parser::set_fb_status(MyCommandParser::Argument *args, char *response) {
   int id = args[0].asInt64;
   bool fb_on = args[1].asInt64;
   if (id != G_L1->get_id()) {
-    bool msg_sent = I2C_message_protocol::set_fb_status(id,fb_on);
+    bool msg_sent = I2C_message_protocol::set_fb_status(id, fb_on);
     strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
     return;
   }
@@ -236,7 +237,7 @@ void Parser::toggle_stream(MyCommandParser::Argument *args, char *response) {
   char *var = args[1].asString;
   unsigned long var_h = hash(var);
   if (id != G_L1->get_id()) {
-    bool msg_sent = I2C_message_protocol::toggle_stream(id,var_h);
+    bool msg_sent = I2C_message_protocol::toggle_stream(id, var_h);
     strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
     return;
   }
@@ -248,7 +249,7 @@ void Parser::get_hist(MyCommandParser::Argument *args, char *response) {
   char *var = args[1].asString;
   unsigned long var_h = hash(var);
   if (id != G_L1->get_id()) {
-    bool msg_sent = I2C_message_protocol::get_hist(id,var_h);
+    bool msg_sent = I2C_message_protocol::get_hist(id, var_h);
     strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
     return;
   }
@@ -413,7 +414,7 @@ void Parser::set_controller_gains(MyCommandParser::Argument *args, char *respons
   float kp = args[1].asDouble;
   float ki = args[2].asDouble;
   if (id != G_L1->get_id()) {
-    bool msg_sent = I2C_message_protocol::set_controller_gains(id,kp,ki);
+    bool msg_sent = I2C_message_protocol::set_controller_gains(id, kp, ki);
     strlcpy(response, msg_sent ? "sent" : "error", MyCommandParser::MAX_RESPONSE_SIZE);
     return;
   }
@@ -426,6 +427,15 @@ void Parser::set_controller_gains(MyCommandParser::Argument *args, char *respons
 void pass_lum_to_parser(Luminary *lum) {
   G_L1 = lum;
 }
+
+struct repeating_timer secundary_timer;  // Main timer structure
+bool secundary_timer_callback(struct repeating_timer *t) {
+  Serial.println("Start secundary timer");
+  Minimizer::optimize();
+//  Minimizer::all_received = false;
+  // Minimizer::consensus();
+  return true;
+}
 /**
  * @brief Controller and simulator routine implemented on the main timer callback
  *
@@ -434,6 +444,8 @@ void pass_lum_to_parser(Luminary *lum) {
  * @return false
  */
 bool main_timer_callback(struct repeating_timer *t) {
+  Serial.println("Start main timer");
+  cancel_repeating_timer(&secundary_timer);
   G_L1->sim.sim_callback(G_L1->contr.get_u_ff());
   G_L1->ldr.median_measure(5);
   G_L1->contr.compute_fdbk_ctrl_action();
@@ -446,5 +458,7 @@ bool main_timer_callback(struct repeating_timer *t) {
   G_L1->update_hist();
   G_L1->print_stream();
   G_L1->send_i2c_stream();
+  Serial.println("End main timer");
+  add_repeating_timer_us(1000000 / 800, secundary_timer_callback, NULL, &secundary_timer);
   return true;
 }

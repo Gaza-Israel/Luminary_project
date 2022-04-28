@@ -1,13 +1,14 @@
 #include <Streaming.h>
 
+#include "Controller.h"
 #include "I2C.h"
 #include "I2C_message_protocol.h"
 #include "LDR.h"
 #include "LED.h"
-#include "Controller.h"
 #include "Luminaire.h"
 #include "Parser.h"
 #include "Simulator.h"
+#include "minimizer.h"
 
 /*
   TODO
@@ -44,6 +45,7 @@ void setup() {
 
   pass_lum_to_parser(&L1);  // Passes the Luminaire object to the parser
   I2C_message_protocol::L = &L1;
+  Minimizer::L = &L1;
   myparser.setup();         // Setup the commands on the parser
   L1.led.start_sequence();  // Blinks the led to signal its ready for serial connections
 
@@ -54,7 +56,7 @@ void setup() {
 
   L1.set_id(I2C::get_I2C1_address());
 
-  L1.wk.calibrate_all();
+  // L1.wk.calibrate_all();
 
   L1.contr.set_gains(50, 500);
   L1.contr.set_fb(true);
@@ -109,7 +111,6 @@ void loop() {
    * and passes it to the parser. Then it waits for the command to
    * be handled and prints the return of the parser
    */
-
   if (Serial.available()) {
     char line[128];
     size_t lineLength = Serial.readBytesUntil('\n', line, 127);

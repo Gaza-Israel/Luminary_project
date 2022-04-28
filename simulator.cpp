@@ -171,6 +171,7 @@ void Simulator::calibrate_G(int avrg_samples, bool fast_mode) {
       sleep_ms(STEADY_STATE_DELAY);
 
       I2C_message_protocol::broadcast_dc(this->led->dutty_cicle);
+      sleep_ms(STEADY_STATE_DELAY);
 
       // Measure the defined number of points
       // for (int j = 0; j < floor(CALIBRATION_POINTS / CALIBRATION_STEPS); j++) {

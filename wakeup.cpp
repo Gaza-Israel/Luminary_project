@@ -33,10 +33,11 @@ wake_up::wake_up(LED *led, LDR *init_ldr, Simulator *sim) {
 
 void wake_up::calibrate_all() {
   Serial.print("Setting Coefficients...\n");
-  this->_ldr->set_coefficients(-1.0, 4.8346);  // Sets ldr coefficients
-  
+  // this->_ldr->set_coefficients(-1.0, 4.8346);  // Sets ldr coefficients
+  this->_ldr->set_coefficients(-0.8, 5);  // Sets ldr coefficients
+
   this->ready_to_calibrate();
-  
+
   int aux_order = -1;  // aux variable for calibration sequence position
 
   // each luminaire tells it is ready when they have all the addresses
@@ -47,9 +48,10 @@ void wake_up::calibrate_all() {
   // check the position of this luminaire in the calibration sequence
   aux_order = I2C_message_protocol::addr_is_saved(I2C::get_I2C1_address());
 
+  sleep_ms(3*STEADY_STATE_DELAY);
   this->_ldr->median_measure(100);
   this->_sim->_L0 = this->_ldr->lux;
-  sleep_ms(STEADY_STATE_DELAY);
+  sleep_ms(3*STEADY_STATE_DELAY);
 
   // whole calibration loop
   for (int i = 0; i < N_LUMINARIES; i++) {
@@ -69,6 +71,11 @@ void wake_up::calibrate_all() {
       sleep_ms(STEADY_STATE_DELAY);
     }
   }
+
+  for (int i = 0; i < N_LUMINARIES; i++) {
+    Serial.println(this->_sim->_K[i], 6);
+  }
+
   // flushes buffer
   while (I2C::buffer_not_empty()) {
     I2C::pop_message_from_buffer();
@@ -145,35 +152,35 @@ void wake_up::ready_to_calibrate() {
     }
 #ifdef DEBUG
     char buff[50];
-    snprintf(buff, 20, "Waiting for nodes - found %d addresses\n", I2C_message_protocol::n_addr_saved);
+    snprintf(buff, 50, "Waiting for nodes - found %d addresses", I2C_message_protocol::n_addr_saved);
     Serial.println(buff);
-    for (int i = 0; i <= I2C_message_protocol::n_addr_saved; i++) {
+    for (int i = 0; i < I2C_message_protocol::n_addr_saved; i++) {
       Serial.println(I2C_message_protocol::nodes_addr[i]);
     }
 #endif
   }
-    bool ready[N_LUMINARIES] = {false};
-    ready[I2C_message_protocol::addr_is_saved(I2C::get_I2C1_address())] = true;
-    I2C::i2c_message msg;
-    msg.msg_id = IM_READY;
-    I2C::send_message(msg,0x00);
-    while (check_ready(ready)){
-      if (I2C::buffer_not_empty()) {
-        msg = I2C::pop_message_from_buffer();
-        if (msg.msg_id == IM_READY){
-              ready[I2C_message_protocol::addr_is_saved(msg.node)] = true;
-        }
+  bool ready[N_LUMINARIES] = {false};
+  ready[I2C_message_protocol::addr_is_saved(I2C::get_I2C1_address())] = true;
+  I2C::i2c_message msg;
+  msg.msg_id = IM_READY;
+  I2C::send_message(msg, 0x00);
+  while (check_ready(ready)) {
+    if (I2C::buffer_not_empty()) {
+      msg = I2C::pop_message_from_buffer();
+      if (msg.msg_id == IM_READY) {
+        ready[I2C_message_protocol::addr_is_saved(msg.node)] = true;
       }
     }
+  }
   return;
 }
 
-bool wake_up::check_ready(bool *ready){
+bool wake_up::check_ready(bool *ready) {
   int counter = 0;
-  for (int i = 0;i<N_LUMINARIES;i++){
-    counter  += ready[i];
+  for (int i = 0; i < N_LUMINARIES; i++) {
+    counter += ready[i];
   }
-  return counter==N_LUMINARIES;
+  return counter == N_LUMINARIES;
 }
 
 void wake_up::wait_for_message(uint8_t _message_id) {
