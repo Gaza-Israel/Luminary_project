@@ -431,9 +431,7 @@ void pass_lum_to_parser(Luminary *lum) {
 struct repeating_timer secundary_timer;  // Main timer structure
 bool secundary_timer_callback(struct repeating_timer *t) {
   Serial.println("Start secundary timer");
-  Minimizer::optimize();
-//  Minimizer::all_received = false;
-  // Minimizer::consensus();
+  Minimizer::consensus();
   return true;
 }
 /**
@@ -444,12 +442,16 @@ bool secundary_timer_callback(struct repeating_timer *t) {
  * @return false
  */
 bool main_timer_callback(struct repeating_timer *t) {
-  Serial.println("Start main timer");
+  // Serial.println("Start main timer");
   cancel_repeating_timer(&secundary_timer);
   G_L1->sim.sim_callback(G_L1->contr.get_u_ff());
   G_L1->ldr.median_measure(5);
   G_L1->contr.compute_fdbk_ctrl_action();
+  #ifndef CONSENSUS
   G_L1->contr.compute_ffwrd_ctrl_action();
+  #else
+  G_L1->contr._u_ff = G_L1->d[I2C_message_protocol::addr_is_saved(I2C::get_I2C1_address())];
+  #endif
   G_L1->contr.update_led_DC();
   G_L1->calc_ext_ilu();
   G_L1->calc_pwr();
@@ -458,7 +460,7 @@ bool main_timer_callback(struct repeating_timer *t) {
   G_L1->update_hist();
   G_L1->print_stream();
   G_L1->send_i2c_stream();
-  Serial.println("End main timer");
-  add_repeating_timer_us(1000000 / 800, secundary_timer_callback, NULL, &secundary_timer);
+  // Serial.println("End main timer");
+//  add_repeating_timer_us(1000000 / 800, secundary_timer_callback, NULL, &secundary_timer);
   return true;
 }

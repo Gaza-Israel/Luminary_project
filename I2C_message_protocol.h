@@ -119,6 +119,7 @@ extern uint8_t nodes_addr[N_STREAM_VARIABLES * N_LUMINARIES];
 extern uint8_t n_addr_saved;
 extern Luminary *L;
 
+
 int addr_is_saved(uint8_t addr);
 void save_addr(uint8_t addr);
 void sort_addresses();
@@ -154,9 +155,9 @@ bool get_acc_flicker(uint8_t addr);
 
 bool send_stream(uint8_t addr, uint8_t var, float data);
 bool broadcast_dc(float value);
-void broadcast_local_consensus_dc(float *value);
+void broadcast_local_consensus_dc(uint8_t addr);
 
-void send_ack(uint8_t addr,uint32_t ID);
+void send_ack(uint8_t addr, uint32_t ID);
 void send_error(uint8_t addr, uint32_t ERROR_REASON);
 void parse_message(I2C::i2c_message msg);
 void parse_set(I2C::i2c_message msg);

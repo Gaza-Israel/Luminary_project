@@ -1,52 +1,74 @@
 #include "minimizer.h"
 
 #include "Luminaire.h"
+template <class To, class From>
+std::enable_if_t<
+    sizeof(To) == sizeof(From) &&
+        std::is_trivially_copyable_v<From> &&
+        std::is_trivially_copyable_v<To>,
+    To>
+// constexpr support needs compiler magic
+bit_cast(const From &src) noexcept {
+  static_assert(std::is_trivially_constructible_v<To>,
+                "This implementation additionally requires destination type to be trivially constructible");
 
+  To dst;
+  memcpy(&dst, &src, sizeof(To));
+  return dst;
+}
 namespace Minimizer {
 Luminary *L;
-float d[N_LUMINARIES] = {0};
-float d_[N_LUMINARIES] = {0};
-float y[N_LUMINARIES] = {0};
-float cost[N_LUMINARIES] = {1, 1};
-float rho = 0.1;
-bool d_received[N_LUMINARIES][N_LUMINARIES];
-bool all_received = false;
+
+bool all_received() {
+  for (int i = 0; i < N_LUMINARIES; i++) {
+    if (!L->d_received[i]) {
+      return false;
+    }
+  }
+  return true;
+}
 
 void consensus() {
-  Minimizer::optimize();
-  Serial.println("optmized");
-  Minimizer::all_received = false;
-  for (int i = 0; i < N_LUMINARIES; i++) {
-    for (int j = 0; j < N_LUMINARIES; j++) {
-      d_received[i][j] = false;
-    }
-    d_[i] = 0;
-  }
-  Serial.println("reseted");
   char buff[50];
   int ff = 0;
-  while (!all_received) {
-    I2C_message_protocol::broadcast_local_consensus_dc(d);
-    Serial.println(ff++);
-    if (I2C::buffer_not_empty()) {
+  int count = 0;
+
+  Minimizer::optimize();
+  Serial.println("optmized");
+  snprintf(buff, 50, "d%d |  %.5f  %.5f  |", I2C_message_protocol::nodes_addr[0], L->d[0], L->d_[0]);
+  Serial.println(buff);
+  snprintf(buff, 50, "d%d |  %.5f  %.5f  |", I2C_message_protocol::nodes_addr[1], L->d[1], L->d_[1]);
+  Serial.println(buff);
+
+  for (int i = 0; i < N_LUMINARIES; i++) {
+    L->d_received[i] = false;
+    L->d_[i] = 0;
+  }
+  Serial.println("reseted");
+  unsigned long last = micros();
+  for (int i = 0; i < N_LUMINARIES; i++) {
+    I2C_message_protocol::broadcast_local_consensus_dc(I2C_message_protocol::nodes_addr[i]);
+    Serial.println("broadcasted");
+  }
+  while (!all_received()) {
+   if (micros() - last > 500000) {
+     last = micros();
+     for (int i = 0; i < N_LUMINARIES; i++) {
+       I2C_message_protocol::broadcast_local_consensus_dc(I2C_message_protocol::nodes_addr[i]);
+       Serial.println("broadcasted");
+     }
+   }
+    while (I2C::buffer_not_empty()) {
       I2C_message_protocol::parse_message(I2C::pop_message_from_buffer());
-      int count = 0;
-      for (int i = 0; i < N_LUMINARIES; i++) {
-        for (int j = 0; j < N_LUMINARIES; j++) {
-          count += Minimizer::d_received[i][j];
-        }
-      }
-      if (count == N_LUMINARIES * N_LUMINARIES) {
-        Minimizer::all_received = true;
-      }
     }
   }
+
   update_lagrangian();
-  int count = 0;
+  count = 0;
   for (int i = 0; i < N_LUMINARIES; i++) {
-    snprintf(buff, 50, "d%d |  %.5f  %.5f  |", I2C_message_protocol::nodes_addr[i], Minimizer::d[i], Minimizer::d_[i]);
+    snprintf(buff, 50, "d%d |  %.5f  %.5f  |", I2C_message_protocol::nodes_addr[i], L->d[i], L->d_[i]);
     Serial.println(buff);
-    if (abs(Minimizer::d[i] - Minimizer::d_[i]) < 0.001) {
+    if (abs(L->d[i] - L->d_[i]) < 0.001) {
       count++;
     }
   }
@@ -61,14 +83,14 @@ void optimize() {
   int idx = I2C_message_protocol::addr_is_saved(I2C::get_I2C1_address());
   for (int i = 0; i < N_LUMINARIES; i++) {
     if (idx == i) {
-      d_int[i] = d_[i] - y[i] / rho - cost[i] / rho;
+      d_int[i] = L->d_[i] - L->y[i] / L->rho - L->cost[i] / L->rho;
     } else {
-      d_int[i] = d_[i] - y[i] / rho;
+      d_int[i] = L->d_[i] - L->y[i] / L->rho;
     }
   }
   if (is_feasible(d_int)) {
     for (int i = 0; i < N_LUMINARIES; i++) {
-      d[i] = d_int[i];
+      L->d[i] = d_int[i];
     }
     return;
   }
@@ -79,30 +101,30 @@ void optimize() {
   float c[5] = {0, 0, 0, 0, 0};
 
   for (int i = 0; i < N_LUMINARIES; i++) {
-    z[i] = rho * d_[i] - cost[i] - y[i];
+    z[i] = L->rho * L->d_[i] - L->cost[i] - L->y[i];
     kz += L->sim._K[i] * z[i];
     norm_sqr_k += L->sim._K[i] * L->sim._K[i];
   }
 
   for (int i = 0; i < N_LUMINARIES; i++) {
-    d_borda[1][i] = z[i] / rho - L->sim._K[i] / norm_sqr_k * (L->get_ext_ilu() - L->contr.get_ref() + kz / rho);
+    d_borda[1][i] = z[i] / L->rho - L->sim._K[i] / norm_sqr_k * (L->get_ext_ilu() - L->contr.get_ref() + kz / L->rho);
     if (idx == i) {
       d_borda[2][i] = 0;
       d_borda[3][i] = 100;
       d_borda[4][i] = 0;
       d_borda[5][i] = 100;
     } else {
-      d_borda[2][i] = z[i] / rho;
-      d_borda[3][i] = z[i] / rho;
-      d_borda[4][i] = z[i] / rho - L->sim._K[i] / (norm_sqr_k - L->sim._K[i] * L->sim._K[i]) * (L->get_ext_ilu() - L->contr.get_ref() + kz / rho - L->sim._K[i] * z[i] / rho);
-      d_borda[5][i] = z[i] / rho - (L->sim._K[i] * (L->get_ext_ilu() - L->contr.get_ref()) + 100 * L->sim._K[i] * L->sim._K[idx]) / (norm_sqr_k - L->sim._K[i] * L->sim._K[i]);
-      d_borda[5][i] += L->sim._K[i] / (rho * (norm_sqr_k - L->sim._K[i] * L->sim._K[i])) * (-kz + L->sim._K[i] * z[i]);
+      d_borda[2][i] = z[i] / L->rho;
+      d_borda[3][i] = z[i] / L->rho;
+      d_borda[4][i] = z[i] / L->rho - L->sim._K[i] / (norm_sqr_k - L->sim._K[i] * L->sim._K[i]) * (L->get_ext_ilu() - L->contr.get_ref() + kz / L->rho - L->sim._K[i] * z[i] / L->rho);
+      d_borda[5][i] = z[i] / L->rho - (L->sim._K[i] * (L->get_ext_ilu() - L->contr.get_ref()) + 100 * L->sim._K[i] * L->sim._K[idx]) / (norm_sqr_k - L->sim._K[i] * L->sim._K[i]);
+      d_borda[5][i] += L->sim._K[i] / (L->rho * (norm_sqr_k - L->sim._K[i] * L->sim._K[i])) * (-kz + L->sim._K[i] * z[i]);
     }
-    c[0] += d_borda[1][i] * cost[i];
-    c[1] += d_borda[2][i] * cost[i];
-    c[2] += d_borda[3][i] * cost[i];
-    c[3] += d_borda[4][i] * cost[i];
-    c[4] += d_borda[5][i] * cost[i];
+    c[0] += d_borda[1][i] * L->cost[i];
+    c[1] += d_borda[2][i] * L->cost[i];
+    c[2] += d_borda[3][i] * L->cost[i];
+    c[3] += d_borda[4][i] * L->cost[i];
+    c[4] += d_borda[5][i] * L->cost[i];
   }
   int min_idx = -1;
   int feasible[] = {is_feasible(d_borda[0]), is_feasible(d_borda[1]), is_feasible(d_borda[2]), is_feasible(d_borda[3]), is_feasible(d_borda[4])};
@@ -115,14 +137,15 @@ void optimize() {
   }
   for (int i = 0; i < N_LUMINARIES; i++) {
     if (min_idx == -1) {
-      Minimizer::d[i] = 100;
+      L->d[i] = 100;
       Serial.println("No option feasible");
     } else {
-      d[i] = d_borda[min_idx][i];
+      L->d[i] = d_borda[min_idx][i];
       // Serial.println("found lowest cost");
     }
   }
 }
+
 bool is_feasible(float *sol) {
   int idx = I2C_message_protocol::addr_is_saved(I2C::get_I2C1_address());
   if (sol[idx] < 0 || sol[idx] > 100) {
@@ -139,7 +162,7 @@ bool is_feasible(float *sol) {
 }
 void update_lagrangian() {
   for (int i = 0; i < N_LUMINARIES; i++) {
-    y[i] = y[i] + rho * (d[i] - d_[i]);
+    L->y[i] = L->y[i] + L->rho * (L->d[i] - L->d_[i]);
   }
 }
 }  // namespace Minimizer

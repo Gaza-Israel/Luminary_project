@@ -3,9 +3,14 @@
 
 #include <hardware/flash.h>
 
-#define FRAME_SIZE 11
+#define FRAME_SIZE 11 + 4
 
 namespace I2C {
+uint8_t this_pico_id[8];
+uint8_t i2c_address;
+uint8_t n_overflows = 0;
+uint8_t n_invalid = 0;
+CircularBuffer<i2c_message, 30> in_buff;
 
 void config_I2C(int SDA0, int SCL0, int SDA1, int SCL1) {
   Wire.setSDA(SDA0);
@@ -39,7 +44,11 @@ int send_message(i2c_message msg, uint8_t address) {
   tx_buff[7] = msg.data >> 8;
   tx_buff[8] = msg.data >> 16;
   tx_buff[9] = msg.data >> 24;
-  tx_buff[10] = calculate_pec(tx_buff, FRAME_SIZE - 1);
+  tx_buff[10] = msg.data2 >> 0;
+  tx_buff[11] = msg.data2 >> 8;
+  tx_buff[12] = msg.data2 >> 16;
+  tx_buff[13] = msg.data2 >> 24;
+  tx_buff[14] = calculate_pec(tx_buff, FRAME_SIZE - 1);
 
   Wire.beginTransmission(address);
   Wire.write(tx_buff, sizeof(tx_buff));
@@ -63,7 +72,8 @@ void recv(int len) {
   msg.msg_id = rx_buff[1];
   msg.ts = rx_buff[2] << 0 | rx_buff[3] << 8 | rx_buff[4] << 16 | rx_buff[5] << 24;
   msg.data = rx_buff[6] << 0 | rx_buff[7] << 8 | rx_buff[8] << 16 | rx_buff[9] << 24;
-  msg.pec = rx_buff[10];
+  msg.data2 = rx_buff[10] << 0 | rx_buff[11] << 8 | rx_buff[12] << 16 | rx_buff[14] << 24;
+  msg.pec = rx_buff[15];
 
   if (in_buff.isFull()) {
     n_overflows++;
@@ -80,11 +90,11 @@ void read_buffer() {
     Serial.println(buff);
   }
 }
-bool buffer_not_empty(){
+bool buffer_not_empty() {
   return in_buff.size() != 0;
 }
 
-i2c_message pop_message_from_buffer(){
+i2c_message pop_message_from_buffer() {
   return in_buff.pop();
 }
 

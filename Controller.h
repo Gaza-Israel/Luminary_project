@@ -11,6 +11,7 @@ class Simulator;
 class Controller {
  public:
   Controller(LED *init_led, LDR *init_ldr, Simulator *sim);
+  float _u_ff = 0;
 
   void compute_fdbk_ctrl_action();
   void compute_ffwrd_ctrl_action();
@@ -47,7 +48,6 @@ class Controller {
   float _ki = 0;
   float _integral = 0;
   float _u_fb = 0;
-  float _u_ff = 0;
   float _u = 0;
   bool _fb_on = false;
   bool _ff_on = false;

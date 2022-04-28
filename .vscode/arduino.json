@@ -1,5 +1,6 @@
 {
     "board": "rp2040:rp2040:rpipico",
-    "port": "COM7",
-    "sketch": "Luminary_project.ino"
+    "port": "COM6",
+    "sketch": "Luminary_project.ino",
+    "output": "../ArduinoOutput"
 }

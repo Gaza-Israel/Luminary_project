@@ -70,5 +70,12 @@ class Luminary {
   CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> L_meas;    // (L_meas * 1000)
   CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> L_pred;    // (L_pred * 1000)
   CircularBuffer<uint16_t, 60 * CONTROLLER_FREQ> integral;  //(integral * 1000)
+
+  float d[N_LUMINARIES] = {0};
+  float d_[N_LUMINARIES] = {0};
+  float y[N_LUMINARIES] = {0};
+  float cost[N_LUMINARIES] = {1, 1};
+  float rho = 0.1;
+  bool d_received[N_LUMINARIES];
 };
 #endif

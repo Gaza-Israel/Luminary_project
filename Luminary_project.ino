@@ -9,7 +9,6 @@
 #include "Parser.h"
 #include "Simulator.h"
 #include "minimizer.h"
-
 /*
   TODO
   Switch conversions on LDR to inline functions
@@ -56,13 +55,14 @@ void setup() {
 
   L1.set_id(I2C::get_I2C1_address());
 
-  // L1.wk.calibrate_all();
+  L1.wk.calibrate_all();
 
   L1.contr.set_gains(50, 500);
   L1.contr.set_fb(true);
   L1.contr.set_ff(true);
   L1.contr.set_anti_windup(true);
-  L1.contr.set_ref(0);
+  L1.contr.set_ref(1, true);
+  L1.contr.set_occ(true);
 
   add_repeating_timer_us(-1000000 / SIMULATOR_FREQ, main_timer_callback, NULL, &main_timer);
   Serial.println("Ready");
@@ -71,7 +71,7 @@ void setup() {
 #endif
 }
 void loop() {
-#ifdef AUTO_TEST
+#ifdef AUTO_TESTar
   L1.contr.set_ref(dc_target[counter] * 1.2 / 100 + 0.15);
   sleep_ms(sleep[counter++]);
   if (counter == 12) {
@@ -111,6 +111,9 @@ void loop() {
    * and passes it to the parser. Then it waits for the command to
    * be handled and prints the return of the parser
    */
+#ifdef CONSENSUS
+  Minimizer::consensus();
+#endif
   if (Serial.available()) {
     char line[128];
     size_t lineLength = Serial.readBytesUntil('\n', line, 127);
@@ -120,7 +123,7 @@ void loop() {
     myparser._parser.processCommand(line, response);
     Serial.println(response);
   }
-  if (I2C::buffer_not_empty()) {
+  while (I2C::buffer_not_empty()) {
     I2C_message_protocol::parse_message(I2C::pop_message_from_buffer());
   }
 }

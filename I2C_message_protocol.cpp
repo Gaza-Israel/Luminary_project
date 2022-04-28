@@ -3,7 +3,7 @@
 #include "Luminaire.h"
 #include "median_filter.h"
 #include "minimizer.h"
-
+#include "System_config.h"
 template <class To, class From>
 std::enable_if_t<
     sizeof(To) == sizeof(From) &&
@@ -19,7 +19,6 @@ bit_cast(const From& src) noexcept {
   memcpy(&dst, &src, sizeof(To));
   return dst;
 }
-
 namespace I2C_message_protocol {
 float buff_recv_i2c_stream[N_STREAM_VARIABLES * N_LUMINARIES] = {0};
 bool recv_new_i2c_stream[N_STREAM_VARIABLES * N_LUMINARIES] = {0};
@@ -225,13 +224,36 @@ bool broadcast_dc(float value) {
   return I2C::send_message(msg, 0x00);
 }
 
-void broadcast_local_consensus_dc(float* value) {
+void broadcast_local_consensus_dc(uint8_t addr) {
   I2C::i2c_message msg;
+
+  byte tx_buff[15];  // size 11 (struct pad to 16, but only 11 are necessary)
+
+  msg.node = I2C::get_I2C1_address();
   msg.msg_id = BROADCAST_CONSENSUS_DC;
-  for (int i = 0; i < N_LUMINARIES; i++) {
-    msg.data = (uint32_t(value[i] * 10000000) & 0x00FFFFFF) | ((uint8_t(i) << 24) &0xFF000000 );
-    I2C::send_message(msg, 0x00);
-  }
+  msg.ts = bit_cast<uint32_t>(L->d[0]);
+  msg.data = bit_cast<uint32_t>(L->d[1]);
+  // msg.data2 = bit_cast<uint32_t>(L->d[2]);
+
+  tx_buff[0] = msg.node;
+  tx_buff[1] = msg.msg_id;
+  tx_buff[2] = msg.ts >> 0;
+  tx_buff[3] = msg.ts >> 8;
+  tx_buff[4] = msg.ts >> 16;
+  tx_buff[5] = msg.ts >> 24;
+  tx_buff[6] = msg.data >> 0;
+  tx_buff[7] = msg.data >> 8;
+  tx_buff[8] = msg.data >> 16;
+  tx_buff[9] = msg.data >> 24;
+  tx_buff[10] = msg.data2 >> 0;
+  tx_buff[11] = msg.data2 >> 8;
+  tx_buff[12] = msg.data2 >> 16;
+  tx_buff[13] = msg.data2 >> 24;
+  tx_buff[14] = I2C::calculate_pec(tx_buff, 15 - 1);
+
+  Wire.beginTransmission(addr);
+  Wire.write(tx_buff, sizeof(tx_buff));
+  Wire.endTransmission();
 }
 /*
 --------------------------------------------------------
@@ -267,11 +289,18 @@ void parse_message(I2C::i2c_message msg) {
       break;
     }
     case BROADCAST_CONSENSUS_DC: {
-      int idx = (msg.data & 0xFF000000) >> 24;
-      float dc = float(msg.data & 0x00FFFFFF) / 10000000;
-      if (!Minimizer::d_received[addr_is_saved(msg.node)][idx]) {
-        Minimizer::d_[idx] += dc / N_LUMINARIES;
-        Minimizer::d_received[addr_is_saved(msg.node)][idx] = true;
+      float dc0 = bit_cast<float>(msg.ts);
+      float dc1 = bit_cast<float>(msg.data);
+      float dc2 = bit_cast<float>(msg.data2);
+      Serial.println(dc0);
+      Serial.println(dc1);
+      Serial.println(dc2);
+      Serial.println(addr_is_saved(msg.node));
+      if (!L->d_received[addr_is_saved(msg.node)]) {
+        L->d_[0] = L->d_[0] + dc0 / N_LUMINARIES;
+        L->d_[1] = L->d_[1] + dc1 / N_LUMINARIES;
+        // L->d_[2] += dc2 / N_LUMINARIES;
+        L->d_received[addr_is_saved(msg.node)] = true;
       }
     }
     default: {
