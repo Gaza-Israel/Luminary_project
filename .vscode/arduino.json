@@ -1,5 +1,7 @@
 {
+    "configuration": "flash=2097152_0,freq=125,opt=Small,rtti=Disabled,dbgport=Disabled,dbglvl=None,usbstack=picosdk",
     "board": "rp2040:rp2040:rpipico",
-    "port": "COM7",
-    "sketch": "Luminary_project.ino"
+    "programmer": "rp2040:atmel_ice",
+    "sketch": "volt2lux\\volt2lux.ino",
+    "port": "COM7"
 }
